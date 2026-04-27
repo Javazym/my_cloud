@@ -1,0 +1,32 @@
+server:
+  port: 8889 # 网关端口
+
+spring:
+  application:
+    name: my-gateway # 网关服务名
+
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848
+      config:
+        file-extension: yaml
+        server-addr: 127.0.0.1:8848
+        # 【关键】指定路由配置的 Data ID
+        # 格式：data-id + file-extension -> gateway-routes.yaml
+        extension-configs:
+          - data-id: gateway-routes
+            group: DEFAULT_GROUP
+            refresh: true # 开启动态刷新
+
+        # 也可以共享配置 (可选)
+        shared-configs:
+          - data-id: common-config
+            group: DEFAULT_GROUP
+            refresh: true
+
+    gateway:
+      discovery:
+        locator:
+          enabled: true # 开启从注册中心自动发现服务 (默认路径：/service-id/**)
+          lower-case-service-id: true # 服务名转小写
+      # 注意：这里不需要写具体的 routes，我们将完全从 Nacos 加载

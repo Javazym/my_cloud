@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: auth-server        # 其他服务改成对应名字：user-service、order-service等
+  cloud:
+    nacos:
+      # 注册中心
+      discovery:
+        server-addr: 127.0.0.1:8848
+        namespace: public
+        group: DEFAULT_GROUP
+      # 配置中心
+      config:
+        server-addr: 127.0.0.1:8848
+        namespace: public
+        group: DEFAULT_GROUP
+        file-extension: yaml   # 配置文件格式
+
+logging:
+  level:
+    com.alibaba.nacos: ERROR
+    com.alibaba.cloud: ERROR

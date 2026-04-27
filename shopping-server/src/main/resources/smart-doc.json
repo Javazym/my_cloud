@@ -1,0 +1,20 @@
+{
+  "serverUrl": "http://127.0.0.1:8901",
+  "outPath": "src/main/resources/static/doc",
+  "projectName": "Shopping Server API文档",
+  "packageFilters": "org.example.shoppingserver.controller",
+  "allInOne": true,
+  "createDebugPage": true,
+  "allInOneDocFileName": "index.html",
+  "showAuthor": false,
+  "isStrict": false,
+  "inlineEnum": true,
+  "tornaEnable": true,
+  "openUrl": "http://192.168.31.37:7700/api",
+  "appToken": "06ccb045d84244c4b4f91fbbd27256dc",
+  "appKey": "20251234567890123456",
+  "appSecret": "12345678901234567890123456789012",
+  "replace": true,
+  "debugEnvName": "测试环境",
+  "debugEnvUrl": "http://127.0.0.1:8080"
+}

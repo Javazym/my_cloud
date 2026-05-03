@@ -1,6 +1,7 @@
 package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.example.shoppingserver.common.MessageWrapper;
 import org.example.shoppingserver.model.entity.OrderStatus;
 import org.example.shoppingserver.model.entity.RefundStatus;
 import org.example.shoppingserver.model.dto.CreateOrderDTO;
@@ -15,11 +16,12 @@ import org.example.shoppingserver.model.entity.OrderRefund;
 import org.example.shoppingserver.model.entity.Product;
 import org.example.shoppingserver.model.entity.ProductSku;
 import org.example.shoppingserver.model.entity.User;
-import org.example.shoppingserver.repository.OrderItemRepository;
-import org.example.shoppingserver.repository.OrderLogisticsRepository;
-import org.example.shoppingserver.repository.OrderRefundRepository;
-import org.example.shoppingserver.repository.OrderRepository;
+import org.example.shoppingserver.mq.producer.OrderDelayProducer;
+import org.example.shoppingserver.mq.producer.OrderProducer;
+import org.example.shoppingserver.repository.*;
 import org.example.shoppingserver.service.OrderService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -38,8 +40,25 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final OrderLogisticsRepository orderLogisticsRepository;
     private final OrderRefundRepository orderRefundRepository;
+    private final ProductSkuRepository productSkuRepository;
+    private final OrderProducer orderProducer;
+    private final OrderDelayProducer orderDelayProducer;
 
     // ====================== 1. 创建订单（完整支持你的 DTO）======================
+
+    @Transactional(rollbackFor = Exception.class)
+    public void checkOrder(CreateOrderDTO dto) {
+        for (CreateOrderDTO.OrderItemCreateDTO itemDto : dto.getItems()) {
+            int stock = productSkuRepository.deductStock(itemDto.getSkuId(), 1);
+            if (stock < 0) {
+                throw new RuntimeException("商品库存不足");
+            }
+        }
+        orderProducer.sendCreateOrderMessage(MessageWrapper.<CreateOrderDTO>builder()
+                        .data(dto)
+                        .targetService("order-service")
+                .build());
+    }
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderDTO createOrder(String userId, CreateOrderDTO dto) {
@@ -56,7 +75,6 @@ public class OrderServiceImpl implements OrderService {
         order.setMerchant(merchant);
         order.setRemark(dto.getRemark());
         order.setStatus(OrderStatus.PENDING_PAYMENT);
-
         // 2. 添加商品
         for (CreateOrderDTO.OrderItemCreateDTO itemDto : dto.getItems()) {
             OrderItem item = new OrderItem();
@@ -79,7 +97,7 @@ public class OrderServiceImpl implements OrderService {
         // 3. 计算总价
         order.recalculateTotal();
         Order savedOrder = orderRepository.save(order);
-
+        orderDelayProducer.sendOrderTimeoutMessage(order.getId());
         return convertToDTO(savedOrder);
     }
 
@@ -101,6 +119,7 @@ public class OrderServiceImpl implements OrderService {
 
     // ====================== 3. 订单详情 ======================
     @Override
+    @Cacheable(value = "orderDetail", key = "#orderId", unless = "#result == null")
     public OrderDTO getOrderDetail(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("订单不存在"));
@@ -109,6 +128,7 @@ public class OrderServiceImpl implements OrderService {
 
     // ====================== 4. 订单详情 + 物流 ======================
     @Override
+    @Cacheable(value = "orderDetailWithLogistics", key = "#orderId", unless = "#result == null")
     public OrderDTO getOrderDetailWithLogistics(Long orderId) {
         OrderDTO dto = getOrderDetail(orderId);
         orderLogisticsRepository.findByOrderId(orderId).ifPresent(log -> {
@@ -127,6 +147,7 @@ public class OrderServiceImpl implements OrderService {
     // ====================== 5. 取消订单 ======================
     @Override
     @Transactional
+    @CacheEvict(value = {"orderDetail", "orderDetailWithLogistics"}, key = "#orderId")
     public boolean cancelOrder(String userId, Long orderId) {
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null || !order.getUser().getId().equals(userId)) return false;
@@ -140,6 +161,7 @@ public class OrderServiceImpl implements OrderService {
     // ====================== 6. 确认收货 ======================
     @Override
     @Transactional
+    @CacheEvict(value = {"orderDetail", "orderDetailWithLogistics"}, key = "#orderId")
     public boolean confirmReceipt(String userId, Long orderId) {
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null || !order.getUser().getId().equals(userId)) return false;
@@ -153,6 +175,7 @@ public class OrderServiceImpl implements OrderService {
     // ====================== 7. 删除订单 ======================
     @Override
     @Transactional
+    @CacheEvict(value = {"orderDetail", "orderDetailWithLogistics"}, key = "#orderId")
     public boolean deleteOrder(String userId, Long orderId) {
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null || !order.getUser().getId().equals(userId)) return false;
@@ -170,6 +193,7 @@ public class OrderServiceImpl implements OrderService {
     // ====================== 9. 支付回调 ======================
     @Override
     @Transactional
+    @CacheEvict(value = {"orderDetail", "orderDetailWithLogistics"}, key = "#orderId")
     public boolean payCallback(Long orderId) {
         Order order = orderRepository.findById(orderId).orElse(null);
         if (order == null || order.getStatus() != OrderStatus.PENDING_PAYMENT) return false;
@@ -203,6 +227,7 @@ public class OrderServiceImpl implements OrderService {
 
     // ====================== 11. 获取订单状态 ======================
     @Override
+    @Cacheable(value = "orderStatus", key = "#orderId", unless = "#result == null")
     public Integer getOrderStatus(Long orderId) {
         return orderRepository.findById(orderId)
                 .map(order -> order.getStatus().ordinal())

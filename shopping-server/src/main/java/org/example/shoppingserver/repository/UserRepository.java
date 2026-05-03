@@ -2,11 +2,14 @@ package org.example.shoppingserver.repository;
 
 
 import org.example.shoppingserver.model.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -35,5 +38,5 @@ public interface UserRepository extends JpaRepository<User, String> {
     /**
      * 根据状态查询用户列表
      */
-    java.util.List<User> findByStatus(Integer status);
+    Page<User> findByStatus(Integer status, Pageable pageable);
 }

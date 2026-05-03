@@ -9,6 +9,8 @@ import org.example.shoppingserver.repository.CouponRepository;
 import org.example.shoppingserver.repository.UserCouponRepository;
 import org.example.shoppingserver.repository.UserRepository;
 import org.example.shoppingserver.service.CouponService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -63,6 +65,7 @@ public class CouponServiceImpl implements CouponService {
 
     // ====================== 3. 优惠券详情 ======================
     @Override
+    @Cacheable(value = "couponDetail", key = "#couponId", unless = "#result == null")
     public Coupon getCouponDetail(Long couponId) {
         return couponRepository.findById(couponId)
                 .orElseThrow(() -> new RuntimeException("优惠券不存在"));
@@ -71,6 +74,7 @@ public class CouponServiceImpl implements CouponService {
     // ====================== 4. 领取优惠券（核心） ======================
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"couponDetail", "availableCoupons"}, allEntries = true)
     public boolean receiveCoupon(String userId, Long couponId) {
         // 1. 检查优惠券
         Coupon coupon = getCouponDetail(couponId);
@@ -160,6 +164,7 @@ public class CouponServiceImpl implements CouponService {
     // ====================== 7. 使用优惠券 ======================
     @Override
     @Transactional
+    @CacheEvict(value = {"userCoupons", "availableCoupons"}, allEntries = true)
     public boolean useCoupon(String userId, Long couponId, Long orderId) {
         Optional<UserCoupon> optional = userCouponRepository.findByUserIdAndCouponId(userId, couponId);
         if (optional.isEmpty()) return false;

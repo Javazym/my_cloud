@@ -10,5 +10,6 @@ public class AnnouncementDTO {
     private String content;
     private Integer type;
     private Integer status;
+    private LocalDateTime publishTime;
     private LocalDateTime createdAt;
 }

@@ -3,6 +3,7 @@ package org.example.shoppingserver.controller;
 
 import lombok.RequiredArgsConstructor;
 
+import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.common.result.ResponseResult;
 import org.example.shoppingserver.model.dto.AddCartDTO;
 import org.example.shoppingserver.model.dto.CartItemDTO;
@@ -28,8 +29,8 @@ public class CartController {
  * 获取购物车列表
  */
  @GetMapping
- public ResponseResult<List<CartItemDTO>> getCartList( @RequestParam String userId) {
- List<CartItemDTO> cartList = cartService.getCartList(userId);
+ public ResponseResult<List<CartItemDTO>> getCartList() {
+ List<CartItemDTO> cartList = cartService.getCartList(UserHolder.getCurrentUserId());
  return ResponseResult.success(cartList);
  }
 
@@ -37,8 +38,8 @@ public class CartController {
  * 获取选中的购物车商品
  */
  @GetMapping("/checked")
- public ResponseResult<List<CartItemDTO>> getCheckedItems( @RequestParam String userId) {
- List<CartItemDTO> items = cartService.getCheckedItems(userId);
+ public ResponseResult<List<CartItemDTO>> getCheckedItems() {
+ List<CartItemDTO> items = cartService.getCheckedItems(UserHolder.getCurrentUserId());
  return ResponseResult.success(items);
  }
 
@@ -46,8 +47,8 @@ public class CartController {
  * 获取购物车商品数量
  */
  @GetMapping("/count")
- public ResponseResult<Integer> getCartCount( @RequestParam String userId) {
- Integer count = cartService.getCartCount(userId);
+ public ResponseResult<Integer> getCartCount() {
+ Integer count = cartService.getCartCount(UserHolder.getCurrentUserId());
  return ResponseResult.success(count);
  }
 
@@ -55,8 +56,8 @@ public class CartController {
  * 获取购物车统计信息
  */
  @GetMapping("/statistics")
- public ResponseResult<CartService.CartStatisticsDTO> getStatistics( @RequestParam String userId) {
- CartService.CartStatisticsDTO statistics = cartService.getStatistics(userId);
+ public ResponseResult<CartService.CartStatisticsDTO> getStatistics() {
+ CartService.CartStatisticsDTO statistics = cartService.getStatistics(UserHolder.getCurrentUserId());
  return ResponseResult.success(statistics);
  }
 
@@ -64,9 +65,8 @@ public class CartController {
  * 添加商品到购物车
  */
  @PostMapping
- public ResponseResult<CartItemDTO> addToCart( @RequestParam String userId,
- @RequestBody AddCartDTO addCartDTO) {
- CartItemDTO cartItem = cartService.addToCart(userId, addCartDTO);
+ public ResponseResult<CartItemDTO> addToCart(@RequestBody AddCartDTO addCartDTO) {
+ CartItemDTO cartItem = cartService.addToCart(UserHolder.getCurrentUserId(), addCartDTO);
  return ResponseResult.success(cartItem);
  }
 
@@ -74,8 +74,8 @@ public class CartController {
  * 更新购物车商品数量
  */
  @PutMapping("/{cartItemId}/quantity")
- public ResponseResult<CartItemDTO> updateQuantity( @RequestParam String userId, @PathVariable Long cartItemId, @RequestParam Integer quantity) {
- CartItemDTO cartItem = cartService.updateQuantity(userId, cartItemId, quantity);
+ public ResponseResult<CartItemDTO> updateQuantity(@PathVariable Long cartItemId, @RequestParam Integer quantity) {
+ CartItemDTO cartItem = cartService.updateQuantity(UserHolder.getCurrentUserId(), cartItemId, quantity);
  return ResponseResult.success(cartItem);
  }
 
@@ -83,8 +83,8 @@ public class CartController {
  * 选中/取消选中购物车商品
  */
  @PutMapping("/{cartItemId}/check")
- public ResponseResult<Boolean> checkItem( @RequestParam String userId, @PathVariable Long cartItemId, @RequestParam Integer checked) {
- boolean result = cartService.checkItem(userId, cartItemId, checked);
+ public ResponseResult<Boolean> checkItem(@PathVariable Long cartItemId, @RequestParam Integer checked) {
+ boolean result = cartService.checkItem(UserHolder.getCurrentUserId(), cartItemId, checked);
  return ResponseResult.success(result);
  }
 
@@ -92,8 +92,8 @@ public class CartController {
  * 全选/取消全选
  */
  @PutMapping("/check-all")
- public ResponseResult<Boolean> checkAll( @RequestParam String userId, @RequestParam Integer checked) {
- boolean result = cartService.checkAll(userId, checked);
+ public ResponseResult<Boolean> checkAll(@RequestParam Integer checked) {
+ boolean result = cartService.checkAll(UserHolder.getCurrentUserId(), checked);
  return ResponseResult.success(result);
  }
 
@@ -101,8 +101,8 @@ public class CartController {
  * 删除购物车商品
  */
  @DeleteMapping("/{cartItemId}")
- public ResponseResult<Boolean> deleteItem( @RequestParam String userId, @PathVariable Long cartItemId) {
- boolean result = cartService.deleteItem(userId, cartItemId);
+ public ResponseResult<Boolean> deleteItem(@PathVariable Long cartItemId) {
+ boolean result = cartService.deleteItem(UserHolder.getCurrentUserId(), cartItemId);
  return ResponseResult.success(result);
  }
 
@@ -110,10 +110,9 @@ public class CartController {
  * 批量删除购物车商品
  */
  @DeleteMapping("/batch")
- public ResponseResult<Boolean> batchDelete( @RequestParam String userId,
- @RequestBody Map<String, List<Long>> request) {
+ public ResponseResult<Boolean> batchDelete(@RequestBody Map<String, List<Long>> request) {
  List<Long> cartItemIds = request.get("cartItemIds");
- boolean result = cartService.batchDelete(userId, cartItemIds);
+ boolean result = cartService.batchDelete(UserHolder.getCurrentUserId(), cartItemIds);
  return ResponseResult.success(result);
  }
 
@@ -121,8 +120,8 @@ public class CartController {
  * 清空购物车
  */
  @DeleteMapping("/clear")
- public ResponseResult<Boolean> clearCart( @RequestParam String userId) {
- boolean result = cartService.clearCart(userId);
+ public ResponseResult<Boolean> clearCart() {
+ boolean result = cartService.clearCart(UserHolder.getCurrentUserId());
  return ResponseResult.success(result);
  }
 }

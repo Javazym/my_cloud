@@ -81,6 +81,16 @@ public class OrderDTO implements Serializable {
     private String statusText;
 
     /**
+     * 订单状态描述
+     */
+    private String statusDescription;
+
+    /**
+     * 支付方式
+     */
+    private String paymentMethod;
+
+    /**
      * 支付时间
      */
     private LocalDateTime payTime;
@@ -89,6 +99,11 @@ public class OrderDTO implements Serializable {
      * 发货时间
      */
     private LocalDateTime shipTime;
+
+    /**
+     * 配送时间（兼容字段）
+     */
+    private LocalDateTime deliveryTime;
 
     /**
      * 收货时间

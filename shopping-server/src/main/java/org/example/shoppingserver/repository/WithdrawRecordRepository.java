@@ -32,6 +32,11 @@ public interface WithdrawRecordRepository extends JpaRepository<WithdrawRecord, 
     List<WithdrawRecord> findByStatus(Integer status);
 
     /**
+     * 根据状态分页查询提现记录
+     */
+    Page<WithdrawRecord> findByStatus(Integer status, Pageable pageable);
+
+    /**
      * 统计商家提现记录数量
      */
     long countByMerchantId(Long merchantId);
@@ -40,6 +45,11 @@ public interface WithdrawRecordRepository extends JpaRepository<WithdrawRecord, 
      * 统计商家待审核提现数量
      */
     long countByMerchantIdAndStatus(Long merchantId, Integer status);
+
+    /**
+     * 统计指定状态的提现记录数量
+     */
+    long countByStatus(Integer status);
 
     /**
      * 查询商家的最新提现记录

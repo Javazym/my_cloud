@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.time.LocalDateTime;
+
 /**
  * 公告实体类
  */
@@ -36,4 +38,10 @@ public class Announcement extends BaseEntity {
      */
     @Column(name = "status")
     private Integer status = 1;
+
+    /**
+     * 发布时间
+     */
+    @Column(name = "publish_time")
+    private LocalDateTime publishTime;
 }

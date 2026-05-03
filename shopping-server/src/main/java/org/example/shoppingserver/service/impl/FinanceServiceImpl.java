@@ -7,6 +7,8 @@ import org.example.shoppingserver.model.entity.Merchant;
 import org.example.shoppingserver.repository.MerchantAccountRepository;
 import org.example.shoppingserver.repository.WithdrawRecordRepository;
 import org.example.shoppingserver.service.FinanceService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +27,7 @@ public class FinanceServiceImpl implements FinanceService {
 
     // ====================== 1. 获取商家账户 ======================
     @Override
+    @Cacheable(value = "merchantAccount", key = "#merchantId", unless = "#result == null")
     public MerchantAccountDTO getAccount(Long merchantId) {
         MerchantAccount account = merchantAccountRepository.findByMerchantId(merchantId)
                 .orElseThrow(() -> new RuntimeException("账户不存在"));
@@ -58,6 +61,7 @@ public class FinanceServiceImpl implements FinanceService {
     // ====================== 3. 申请提现 ======================
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"merchantAccount", "withdrawRecords"}, allEntries = true)
     public boolean applyWithdraw(Long merchantId, WithdrawDTO withdrawDTO) {
         // 1. 获取账户
         MerchantAccount account = merchantAccountRepository.findByMerchantId(merchantId)

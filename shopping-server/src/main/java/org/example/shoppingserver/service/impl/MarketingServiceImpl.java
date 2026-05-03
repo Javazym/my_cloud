@@ -8,6 +8,8 @@ import org.example.shoppingserver.model.entity.Banner;
 import org.example.shoppingserver.repository.AnnouncementRepository;
 import org.example.shoppingserver.repository.BannerRepository;
 import org.example.shoppingserver.service.MarketingService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,7 @@ public class MarketingServiceImpl implements MarketingService {
 
     // ====================== 1. 获取轮播图 ======================
     @Override
+    @Cacheable(value = "banners", key = "#position != null ? #position : 'all'", unless = "#result == null || #result.isEmpty()")
     public List<BannerDTO> getBanners(Integer position) {
         LocalDateTime now = LocalDateTime.now();
         List<Banner> banners = bannerRepository.findActiveBanners(position, now);
@@ -35,6 +38,7 @@ public class MarketingServiceImpl implements MarketingService {
 
     // ====================== 2. 获取公告列表 ======================
     @Override
+    @Cacheable(value = "announcements", key = "#type != null ? #type + ':' + #limit : 'all:' + #limit", unless = "#result == null || #result.isEmpty()")
     public List<AnnouncementDTO> getAnnouncements(Integer type, int limit) {
         List<Announcement> list;
 
@@ -56,6 +60,7 @@ public class MarketingServiceImpl implements MarketingService {
 
     // ====================== 3. 公告详情 ======================
     @Override
+    @Cacheable(value = "announcement", key = "#announcementId", unless = "#result == null")
     public AnnouncementDTO getAnnouncementById(Long announcementId) {
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new RuntimeException("公告不存在"));

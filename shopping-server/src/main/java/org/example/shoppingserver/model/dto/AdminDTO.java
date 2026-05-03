@@ -15,11 +15,6 @@ public class AdminDTO implements Serializable {
 
     private Long id;
     private String username;
-    private String nickname;
-    private String avatar;
-    private Long roleId;
-    private String roleName;
     private Integer status;
     private LocalDateTime lastLoginTime;
-    private String lastLoginIp;
 }

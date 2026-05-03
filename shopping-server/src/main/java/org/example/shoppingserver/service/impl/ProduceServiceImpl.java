@@ -19,6 +19,8 @@ import org.example.shoppingserver.repository.MerchantRepository;
 import org.example.shoppingserver.repository.ProductRepository;
 import org.example.shoppingserver.service.ProductService;
 import org.example.shoppingserver.util.ProductConverter;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +44,7 @@ public class ProduceServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"product", "productDetail", "hotProducts", "featuredProducts", "newProducts", "recommendedProducts"}, allEntries = true)
     public Long createProduct(ProductCreateDTO dto) {
         Product product = new Product();
         convertToEntity(product, dto);
@@ -71,6 +74,7 @@ public class ProduceServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"product", "productDetail", "hotProducts", "featuredProducts", "newProducts", "recommendedProducts"}, allEntries = true)
     public void updateProduct(Long productId, ProductUpdateDTO dto) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("商品不存在"));
@@ -98,6 +102,7 @@ public class ProduceServiceImpl implements ProductService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"product", "productDetail", "hotProducts", "featuredProducts", "newProducts", "recommendedProducts"}, allEntries = true)
     public void deleteProduct(Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("商品不存在"));
@@ -304,6 +309,7 @@ public class ProduceServiceImpl implements ProductService {
     }
 
     @Override
+    @Cacheable(value = "productDetail", key = "#productId", unless = "#result == null")
     public ProductDetailVO getProductDetail(Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("商品不存在"));
@@ -311,6 +317,7 @@ public class ProduceServiceImpl implements ProductService {
     }
 
     @Override
+    @Cacheable(value = "hotProducts", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<ProductVO> getHotProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findHotProducts(pageable);
@@ -318,6 +325,7 @@ public class ProduceServiceImpl implements ProductService {
     }
 
     @Override
+    @Cacheable(value = "featuredProducts", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<ProductVO> getFeaturedProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findFeaturedProducts(pageable);
@@ -325,6 +333,7 @@ public class ProduceServiceImpl implements ProductService {
     }
 
     @Override
+    @Cacheable(value = "newProducts", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<ProductVO> getNewProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findNewProducts(pageable);
@@ -332,6 +341,7 @@ public class ProduceServiceImpl implements ProductService {
     }
 
     @Override
+    @Cacheable(value = "recommendedProducts", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<ProductVO> getRecommendedProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findRecommendedProducts(pageable);

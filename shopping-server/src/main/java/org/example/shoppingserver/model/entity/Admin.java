@@ -28,18 +28,6 @@ public class Admin extends BaseEntity {
     private String password;
 
     /**
-     * 昵称
-     */
-    @Column(name = "nickname", length = 50)
-    private String nickname;
-
-    /**
-     * 头像
-     */
-    @Column(name = "avatar", length = 255)
-    private String avatar;
-
-    /**
      * 状态：0-禁用，1-正常
      */
     @Column(name = "status")
@@ -50,10 +38,4 @@ public class Admin extends BaseEntity {
      */
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
-
-    /**
-     * 最后登录IP
-     */
-    @Column(name = "last_login_ip", length = 50)
-    private String lastLoginIp;
 }

@@ -7,6 +7,8 @@ import org.example.shoppingserver.model.vo.CategoryVO;
 import org.example.shoppingserver.repository.CategoryRepository;
 import org.example.shoppingserver.service.CategoryService;
 import org.springframework.beans.BeanUtils;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepository;
 
     @Override
+    @Cacheable(value = "categoryTree", unless = "#result == null || #result.isEmpty()")
     public List<CategoryVO> getCategoryTree() {
         // 获取所有顶级分类
         List<Category> topCategories = categoryRepository.findTopCategories();
@@ -53,6 +56,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Cacheable(value = "categoriesByLevel", key = "#level", unless = "#result == null || #result.isEmpty()")
     public List<CategoryVO> getCategoriesByLevel(Integer level) {
         List<Category> categories = categoryRepository.findByLevel(level);
         return categories.stream()
@@ -61,6 +65,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Cacheable(value = "category", key = "#categoryId", unless = "#result == null")
     public CategoryVO getCategoryById(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException("分类不存在"));
@@ -69,6 +74,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"categoryTree", "categoriesByLevel", "category"}, allEntries = true)
     public Long createCategory(CategoryDTO dto) {
         // 检查分类名称是否已存在
         Category existingCategory = categoryRepository.findByName(dto.getName());
@@ -111,6 +117,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"categoryTree", "categoriesByLevel", "category"}, allEntries = true)
     public void updateCategory(Long categoryId, CategoryDTO dto) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException("分类不存在"));
@@ -172,6 +179,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"categoryTree", "categoriesByLevel", "category"}, allEntries = true)
     public void deleteCategory(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException("分类不存在"));
@@ -190,6 +198,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"categoryTree", "categoriesByLevel", "category"}, allEntries = true)
     public void updateCategoryStatus(Long categoryId, Integer status) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException("分类不存在"));
@@ -200,6 +209,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
+    @CacheEvict(value = {"categoryTree", "categoriesByLevel", "category"}, allEntries = true)
     public void updateCategorySort(Long categoryId, Integer sort) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException("分类不存在"));

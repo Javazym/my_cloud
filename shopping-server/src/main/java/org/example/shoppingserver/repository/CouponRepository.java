@@ -26,6 +26,16 @@ public interface CouponRepository extends JpaRepository<Coupon, Long>, JpaSpecif
     List<Coupon> findByMerchantId(Long merchantId);
 
     /**
+     * 根据商家ID分页查询优惠券
+     */
+    Page<Coupon> findByMerchantId(Long merchantId, Pageable pageable);
+
+    /**
+     * 根据商家ID和状态分页查询优惠券
+     */
+    Page<Coupon> findByMerchantIdAndStatus(Long merchantId, Integer status, Pageable pageable);
+
+    /**
      * 查询可领取的优惠券
      */
     @Query("SELECT c FROM Coupon c WHERE c.status = 1 AND c.startTime <= :now AND c.endTime >= :now AND (c.totalCount = 0 OR c.receiveCount < c.totalCount)")
@@ -72,4 +82,9 @@ public interface CouponRepository extends JpaRepository<Coupon, Long>, JpaSpecif
      * 统计商家优惠券数量
      */
     long countByMerchantId(Long merchantId);
+
+    /**
+     * 统计商家指定状态的优惠券数量
+     */
+    long countByMerchantIdAndStatus(Long merchantId, Integer status);
 }

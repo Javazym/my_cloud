@@ -10,6 +10,8 @@ import org.example.shoppingserver.model.entity.User;
 import org.example.shoppingserver.repository.MerchantApplicationRepository;
 import org.example.shoppingserver.repository.MerchantRepository;
 import org.example.shoppingserver.service.MerchantService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,6 +90,7 @@ public class MerchantServiceImpl implements MerchantService {
 
     // ====================== 2. 根据商家ID获取信息 ======================
     @Override
+    @Cacheable(value = "merchantInfo", key = "#userId", unless = "#result == null")
     public MerchantDTO getMerchantInfo(String userId) {
         Merchant merchant = merchantRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("商家不存在"));
@@ -96,6 +99,7 @@ public class MerchantServiceImpl implements MerchantService {
 
     // ====================== 3. 根据用户ID获取商家 ======================
     @Override
+    @Cacheable(value = "merchantByUserId", key = "#userId", unless = "#result == null")
     public MerchantDTO getMerchantByUserId(String userId) {
         Merchant merchant = merchantRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("商家不存在"));
@@ -105,6 +109,7 @@ public class MerchantServiceImpl implements MerchantService {
     // ====================== 4. 更新商家信息 ======================
     @Override
     @Transactional
+    @CacheEvict(value = {"merchantInfo", "merchantByUserId"}, allEntries = true)
     public MerchantDTO updateMerchantInfo(String userId, MerchantDTO merchantDTO) {
         Merchant merchant = merchantRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("商家不存在"));

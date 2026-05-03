@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -18,16 +19,18 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(exclude = {"roles"})
-public class SysUser {
+public class SysUser implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     @Column(unique = true)
     private String username;
     private String email;
+    @Column(unique = true)
     private String password;
     private int status;
     private LocalDateTime createTime;
+    private LocalDateTime updateTime;
     @ManyToMany
     @JoinTable(
             name = "user_role", // 中间表名

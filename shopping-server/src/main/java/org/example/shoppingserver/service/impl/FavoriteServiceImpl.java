@@ -9,6 +9,8 @@ import org.example.shoppingserver.repository.FavoriteRepository;
 import org.example.shoppingserver.repository.ProductRepository;
 import org.example.shoppingserver.repository.UserRepository;
 import org.example.shoppingserver.service.FavoriteService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -67,6 +69,7 @@ public class FavoriteServiceImpl implements FavoriteService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "favorites", allEntries = true)
     public boolean addFavorite(String userId, Long productId) {
         // 检查是否已收藏
         if (favoriteRepository.existsByUserIdAndProductId(userId, productId)) {
@@ -97,6 +100,7 @@ public class FavoriteServiceImpl implements FavoriteService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = "favorites", allEntries = true)
     public boolean removeFavorite(String userId, Long productId) {
         favoriteRepository.deleteByUserIdAndProductId(userId, productId);
         return true;
@@ -110,6 +114,7 @@ public class FavoriteServiceImpl implements FavoriteService {
      * @return 是否已收藏
      */
     @Override
+    @Cacheable(value = "favoriteCheck", key = "#userId + ':' + #productId", unless = "#result == null")
     public boolean checkFavorite(String userId, Long productId) {
         return favoriteRepository.existsByUserIdAndProductId(userId, productId);
     }
@@ -121,6 +126,7 @@ public class FavoriteServiceImpl implements FavoriteService {
      * @return 收藏数量
      */
     @Override
+    @Cacheable(value = "favoriteCount", key = "#userId", unless = "#result == null")
     public Integer getFavoriteCount(String userId) {
         return (int) favoriteRepository.countByUserId(userId);
     }
@@ -133,6 +139,7 @@ public class FavoriteServiceImpl implements FavoriteService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = {"favorites", "favoriteCount"}, allEntries = true)
     public boolean clearFavorites(String userId) {
         favoriteRepository.deleteByUserId(userId);
         return true;
@@ -147,6 +154,7 @@ public class FavoriteServiceImpl implements FavoriteService {
      */
     @Override
     @Transactional
+    @CacheEvict(value = {"favorites", "favoriteCount"}, allEntries = true)
     public boolean batchRemove(String userId, List<Long> favoriteIds) {
         if (favoriteIds == null || favoriteIds.isEmpty()) {
             return false;

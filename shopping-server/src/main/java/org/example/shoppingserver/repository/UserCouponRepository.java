@@ -76,4 +76,16 @@ public interface UserCouponRepository extends JpaRepository<UserCoupon, Long>, J
     @Modifying
     @Query("UPDATE UserCoupon u SET u.status = 1, u.useTime = :useTime, u.order.id = :orderId WHERE u.id = :id")
     void useCoupon(@Param("id") Long id, @Param("orderId") Long orderId, @Param("useTime") LocalDateTime useTime);
+
+    /**
+     * 统计商家优惠券的总领取数
+     */
+    @Query("SELECT COUNT(uc) FROM UserCoupon uc WHERE uc.coupon.merchant.id = :merchantId")
+    long countByCouponMerchantId(@Param("merchantId") Long merchantId);
+
+    /**
+     * 统计商家优惠券的总使用数
+     */
+    @Query("SELECT COUNT(uc) FROM UserCoupon uc WHERE uc.coupon.merchant.id = :merchantId AND uc.status = :status")
+    long countByCouponMerchantIdAndStatus(@Param("merchantId") Long merchantId, @Param("status") Integer status);
 }

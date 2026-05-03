@@ -28,10 +28,22 @@ public class Banner extends BaseEntity {
     private String image;
 
     /**
+     * 图片URL（别名，兼容DTO）
+     */
+    @Transient
+    private String imageUrl;
+
+    /**
      * 链接地址
      */
     @Column(name = "link", length = 255)
     private String link;
+
+    /**
+     * 链接地址（别名，兼容DTO）
+     */
+    @Transient
+    private String linkUrl;
 
     /**
      * 链接类型：product-商品，category-分类，url-网页

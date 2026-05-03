@@ -107,4 +107,9 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
      */
     @Query("SELECT SUM(o.payAmount) FROM Order o WHERE o.createdAt >= :startTime AND o.status >= 3")
     java.math.BigDecimal sumTodaySales(@Param("startTime") LocalDateTime startTime);
+
+    /**
+     * 统计指定状态订单数量
+     */
+    Page<Order> findAllByStatus(OrderStatus status, Pageable pageable);
 }

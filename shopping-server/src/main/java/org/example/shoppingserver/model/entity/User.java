@@ -21,7 +21,6 @@ public class User {
      * 用户名
      */
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
     @Column(name = "updated_at")

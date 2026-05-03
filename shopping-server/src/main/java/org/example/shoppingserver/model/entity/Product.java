@@ -7,6 +7,7 @@ import org.example.shoppingserver.util.JsonListConverter;
 import org.example.shoppingserver.util.JsonMapConverter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -141,6 +142,25 @@ public class Product extends BaseEntity {
      */
     @Column(name = "publish_status")
     private Integer publishStatus = 0;
+
+    /**
+     * 审核状态
+     */
+    @Enumerated(EnumType.ORDINAL)
+    @Column(name = "audit_status")
+    private AuditStatus auditStatus = AuditStatus.PENDING;
+
+    /**
+     * 审核备注
+     */
+    @Column(name = "audit_remark", length = 500)
+    private String auditRemark;
+
+    /**
+     * 审核时间
+     */
+    @Column(name = "audit_time")
+    private LocalDateTime auditTime;
 
     /**
      * 标签（JSON数组）

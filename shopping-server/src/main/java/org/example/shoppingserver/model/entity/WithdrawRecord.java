@@ -66,6 +66,12 @@ public class WithdrawRecord extends BaseEntity {
     private Integer status = 0;
 
     /**
+     * 审核备注/拒绝原因
+     */
+    @Column(name = "audit_reason", length = 255)
+    private String auditReason;
+
+    /**
      * 备注
      */
     @Column(name = "remark", length = 255)
@@ -78,6 +84,18 @@ public class WithdrawRecord extends BaseEntity {
     private LocalDateTime applyTime;
 
     /**
+     * 审核时间
+     */
+    @Column(name = "audit_time")
+    private LocalDateTime auditTime;
+
+    /**
+     * 打款时间
+     */
+    @Column(name = "transfer_time")
+    private LocalDateTime transferTime;
+
+    /**
      * 处理时间
      */
     @Column(name = "process_time")
@@ -88,6 +106,7 @@ public class WithdrawRecord extends BaseEntity {
      */
     public void approve() {
         this.status = 1;
+        this.auditTime = LocalDateTime.now();
         this.processTime = LocalDateTime.now();
     }
 
@@ -96,6 +115,7 @@ public class WithdrawRecord extends BaseEntity {
      */
     public void completed() {
         this.status = 2;
+        this.transferTime = LocalDateTime.now();
         this.processTime = LocalDateTime.now();
     }
 
@@ -104,7 +124,8 @@ public class WithdrawRecord extends BaseEntity {
      */
     public void reject(String reason) {
         this.status = 3;
-        this.remark = reason;
+        this.auditReason = reason;
+        this.auditTime = LocalDateTime.now();
         this.processTime = LocalDateTime.now();
     }
 }

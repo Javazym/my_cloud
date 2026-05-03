@@ -9,6 +9,8 @@ import org.example.shoppingserver.repository.UserAddressRepository;
 import org.example.shoppingserver.repository.UserRepository;
 import org.example.shoppingserver.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +20,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 @Slf4j
 @Service
-class UserServiceImpl implements UserService {
+public class UserServiceImpl implements UserService {
 
     @Autowired
     private  UserRepository userRepository;
@@ -26,6 +28,7 @@ class UserServiceImpl implements UserService {
     private UserAddressRepository userAddressRepository;
 
     @Override
+    @Cacheable(value = "currentUser", unless = "#result == null")
     public UserDTO getCurrentUser() {
         log.info(SecurityContextHolder.getContext().getAuthentication().getName());
         return toDTO(Objects.requireNonNull(userRepository.findById(SecurityContextHolder
@@ -77,11 +80,13 @@ class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "user", key = "#userId", unless = "#result == null")
     public UserDTO getUserById(String userId) {
         return toDTO(Objects.requireNonNull(userRepository.findById(userId).orElse(null)));
     }
 
     @Override
+    @CacheEvict(value = {"user", "currentUser"}, allEntries = true)
     public UserDTO updateUser(String userId, UserDTO userDTO) {
         User user = userRepository.findById(userId).orElse(null);
         user.setEmail(userDTO.getEmail());
@@ -96,6 +101,7 @@ class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(value = "userAddresses", key = "#userId", unless = "#result == null || #result.isEmpty()")
     public List<UserAddressDTO> getAddresses(String userId) {
         return userAddressRepository.findByUserId(userId).stream().map(
                 address -> toAddressDTO(address)
@@ -109,6 +115,7 @@ class UserServiceImpl implements UserService {
 
     @Transactional
     @Override
+    @CacheEvict(value = "userAddresses", key = "#userId")
     public UserAddressDTO addAddress(String userId, UserAddressDTO addressDTO) {
         userAddressRepository.save(toEntity(addressDTO, userId));
         if (addressDTO.getIsDefault() == 1) {
@@ -118,6 +125,7 @@ class UserServiceImpl implements UserService {
     }
     @Transactional
     @Override
+    @CacheEvict(value = "userAddresses", key = "#userId")
     public UserAddressDTO updateAddress(String userId, Long addressId, UserAddressDTO addressDTO) {
         UserAddress userAddress = userAddressRepository.findByUserIdAndId(userId, addressId);
         userAddress.setDetailAddress(addressDTO.getDetailAddress());
@@ -135,12 +143,14 @@ class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CacheEvict(value = "userAddresses", key = "#userId")
     public boolean deleteAddress(String userId, Long addressId) {
         userAddressRepository.deleteById(addressId);
         return false;
     }
     @Transactional
     @Override
+    @CacheEvict(value = "userAddresses", allEntries = true)
     public boolean setDefaultAddress(String userId, Long addressId) {
         userAddressRepository.clearDefaultAddress(userId);
         userAddressRepository.setDefaultAddress(addressId);

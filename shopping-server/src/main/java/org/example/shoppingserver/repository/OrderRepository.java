@@ -1,8 +1,8 @@
 package org.example.shoppingserver.repository;
 
 
-import org.example.shoppingserver.model.entity.OrderStatus;
-import org.example.shoppingserver.model.entity.Order;
+import org.example.shoppingserver.model.entity.order.OrderStatus;
+import org.example.shoppingserver.model.entity.order.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -89,6 +89,18 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
      * 统计商家各状态订单数量
      */
     long countByMerchantIdAndStatus(Long merchantId, OrderStatus status);
+
+    /**
+     * 统计商家订单总数（使用JPQL）
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.merchant.id = :merchantId")
+    long countOrdersByMerchantId(@Param("merchantId") Long merchantId);
+
+    /**
+     * 统计商家各状态订单数量（使用JPQL）
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.merchant.id = :merchantId AND o.status = :status")
+    long countOrdersByMerchantIdAndStatus(@Param("merchantId") Long merchantId, @Param("status") OrderStatus status);
 
     /**
      * 查询超时未付款订单

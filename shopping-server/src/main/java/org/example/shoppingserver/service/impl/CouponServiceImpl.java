@@ -2,9 +2,16 @@ package org.example.shoppingserver.service.impl;
 
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
-import org.example.shoppingserver.model.entity.Coupon;
-import org.example.shoppingserver.model.entity.UserCoupon;
+import lombok.extern.slf4j.Slf4j;
+
+import org.example.shoppingserver.model.dto.coupon.CouponQueryDTO;
+import org.example.shoppingserver.model.vo.coupon.CouponVO;
+import org.example.shoppingserver.model.vo.coupon.UserCouponVO;
+import org.example.shoppingserver.model.dto.coupon.ValidateResultDTO;
+import org.example.shoppingserver.model.entity.coupon.Coupon;
+import org.example.shoppingserver.model.entity.coupon.UserCoupon;
 import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.vo.coupon.ValidateResultVO;
 import org.example.shoppingserver.repository.CouponRepository;
 import org.example.shoppingserver.repository.UserCouponRepository;
 import org.example.shoppingserver.repository.UserRepository;
@@ -24,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CouponServiceImpl implements CouponService {
@@ -32,14 +40,10 @@ public class CouponServiceImpl implements CouponService {
     private final UserCouponRepository userCouponRepository;
     private final UserRepository userRepository;
 
-    // ====================== 1. 分页查询优惠券 ======================
+    // ====================== 1. 查询优惠券列表 ======================
     @Override
-    public Page<Coupon> getCoupons(CouponQueryDTO queryDTO) {
-        Pageable pageable = PageRequest.of(
-                queryDTO.getPageNum() - 1,
-                queryDTO.getPageSize()
-        );
-
+    public List<CouponVO> getCoupons(CouponQueryDTO queryDTO) {
+        LocalDateTime now = LocalDateTime.now();
         Specification<Coupon> spec = (root, query, cb) -> {
             List<Predicate> list = new ArrayList<>();
 
@@ -49,26 +53,36 @@ public class CouponServiceImpl implements CouponService {
             if (queryDTO.getStatus() != null) {
                 list.add(cb.equal(root.get("status"), queryDTO.getStatus()));
             }
+            
+            // 添加有效期校验：只查询在有效期内的优惠券
+            list.add(cb.lessThanOrEqualTo(root.get("startTime"), now));
+            list.add(cb.greaterThanOrEqualTo(root.get("endTime"), now));
 
             return cb.and(list.toArray(new Predicate[0]));
         };
 
-        return couponRepository.findAll(spec, pageable);
+        return couponRepository.findAll(spec).stream()
+                .map(this::convertToVO)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     // ====================== 2. 获取可用优惠券 ======================
     @Override
-    public List<Coupon> getAvailableCoupons(String userId, BigDecimal orderAmount) {
+    public List<CouponVO> getAvailableCoupons(String userId, BigDecimal orderAmount) {
         LocalDateTime now = LocalDateTime.now();
-        return couponRepository.findAvailableCoupons(now);
+        return couponRepository.findAvailableCoupons(now).stream()
+                .filter(coupon -> coupon.isValid()) // 确保优惠券在有效期内
+                .map(this::convertToVO)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     // ====================== 3. 优惠券详情 ======================
     @Override
     @Cacheable(value = "couponDetail", key = "#couponId", unless = "#result == null")
-    public Coupon getCouponDetail(Long couponId) {
-        return couponRepository.findById(couponId)
+    public CouponVO getCouponDetail(Long couponId) {
+        Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new RuntimeException("优惠券不存在"));
+        return convertToVO(coupon);
     }
 
     // ====================== 4. 领取优惠券（核心） ======================
@@ -77,7 +91,7 @@ public class CouponServiceImpl implements CouponService {
     @CacheEvict(value = {"couponDetail", "availableCoupons"}, allEntries = true)
     public boolean receiveCoupon(String userId, Long couponId) {
         // 1. 检查优惠券
-        Coupon coupon = getCouponDetail(couponId);
+        Coupon coupon = couponRepository.findById(couponId).orElse(null);
         if (!coupon.isValid() || !coupon.hasStock()) {
             return false;
         }
@@ -116,7 +130,7 @@ public class CouponServiceImpl implements CouponService {
 
     // ====================== 5. 查询我的优惠券 ======================
     @Override
-    public Page<UserCouponDTO> getUserCoupons(String userId, Integer status, int pageNum, int pageSize) {
+    public Page<UserCouponVO> getUserCoupons(String userId, Integer status, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<UserCoupon> page;
 
@@ -126,13 +140,13 @@ public class CouponServiceImpl implements CouponService {
             page = userCouponRepository.findByUserIdAndStatus(userId, status, pageable);
         }
 
-        return page.map(this::convertToDTO);
+        return page.map(this::convertToUserCouponVO);
     }
 
     // ====================== 6. 验证优惠券 ======================
     @Override
-    public ValidateResultDTO validateCoupon(String userId, Long couponId, BigDecimal orderAmount) {
-        ValidateResultDTO dto = new ValidateResultDTO();
+    public ValidateResultVO validateCoupon(String userId, Long couponId, BigDecimal orderAmount) {
+        ValidateResultVO dto = new ValidateResultVO();
         Optional<UserCoupon> optional = userCouponRepository.findByUserIdAndCouponId(userId, couponId);
 
         if (optional.isEmpty()) {
@@ -177,18 +191,112 @@ public class CouponServiceImpl implements CouponService {
         return true;
     }
 
-    // ====================== 工具：转DTO ======================
-    private UserCouponDTO convertToDTO(UserCoupon uc) {
-        UserCouponDTO dto = new UserCouponDTO();
-        dto.setId(uc.getId());
-        dto.setCouponId(uc.getCoupon().getId());
-        dto.setCouponName(uc.getCouponName());
-        dto.setCouponType(uc.getCouponType());
-        dto.setValue(uc.getValue());
-        dto.setMinAmount(uc.getMinAmount());
-        dto.setMaxDiscount(uc.getMaxDiscount());
-        dto.setStatus(uc.getStatus());
-        dto.setExpireTime(uc.getExpireTime());
-        return dto;
+    // ====================== 8. 清理过期优惠券 ======================
+    @Override
+    @Transactional
+    @CacheEvict(value = {"userCoupons", "availableCoupons"}, allEntries = true)
+    public int cleanExpiredCoupons() {
+        LocalDateTime now = LocalDateTime.now();
+        int count = userCouponRepository.updateExpiredStatus(now);
+        
+        if (count > 0) {
+            log.info("清理过期优惠券完成，共更新 {} 张优惠券状态为已过期", count);
+        }
+        
+        return count;
+    }
+
+    // ====================== 9. 获取指定商品的可用优惠券 ======================
+    @Override
+    public List<CouponVO> getAvailableCouponsForProduct(Long productId, Long merchantId) {
+        LocalDateTime now = LocalDateTime.now();
+        return couponRepository.findAvailableCouponsByProductId(
+                String.valueOf(productId), 
+                merchantId, 
+                now).stream()
+                .filter(coupon -> coupon.isValid()) // 确保优惠券在有效期内
+                .map(this::convertToVO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    // ====================== 10. 获取用户可用于指定商品的优惠券 ======================
+    @Override
+    public List<UserCouponVO> getUserAvailableCouponsForProduct(String userId, Long productId, Long merchantId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<UserCoupon> userCoupons = userCouponRepository.findAvailableCouponsWithDetail(userId, now);
+        
+        // 过滤出适用于该商品的优惠券
+        return userCoupons.stream()
+                .filter(userCoupon -> isCouponApplicableForProduct(userCoupon.getCoupon(), productId, merchantId))
+                .map(this::convertToUserCouponVO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * 判断优惠券是否适用于指定商品
+     */
+    private boolean isCouponApplicableForProduct(Coupon coupon, Long productId, Long merchantId) {
+        if (coupon == null || !coupon.isValid()) {
+            return false;
+        }
+        
+        String scope = coupon.getScope();
+        
+        // 全场券：所有商品都可用
+        if ("all".equals(scope)) {
+            return true;
+        }
+        
+        // 商家券：检查是否是同一商家
+        if (coupon.getMerchant() != null && coupon.getMerchant().getId().equals(merchantId)) {
+            return true;
+        }
+        
+        // 商品券：检查是否包含该商品
+        if ("product".equals(scope) && coupon.getProductIds() != null) {
+            return coupon.getProductIds().contains(String.valueOf(productId));
+        }
+        
+        // 分类券：需要检查商品分类（这里简化处理，暂不支持）
+        // 如果需要支持分类券，需要查询商品的分类ID并匹配
+        
+        return false;
+    }
+
+    // ====================== 工具：转VO ======================
+    private UserCouponVO convertToUserCouponVO(UserCoupon uc) {
+        UserCouponVO vo = new UserCouponVO();
+        vo.setId(uc.getId());
+        vo.setCouponId(uc.getCoupon().getId());
+        vo.setCouponName(uc.getCouponName());
+        vo.setCouponType(uc.getCouponType());
+        vo.setValue(uc.getValue());
+        vo.setMinAmount(uc.getMinAmount());
+        vo.setMaxDiscount(uc.getMaxDiscount());
+        vo.setStatus(uc.getStatus());
+        vo.setExpireTime(uc.getExpireTime());
+        return vo;
+    }
+
+    private CouponVO convertToVO(Coupon coupon) {
+        CouponVO vo = new CouponVO();
+        vo.setId(coupon.getId());
+        vo.setName(coupon.getName());
+        vo.setType(coupon.getType());
+        vo.setValue(coupon.getValue());
+        vo.setMinAmount(coupon.getMinAmount());
+        vo.setMaxDiscount(coupon.getMaxDiscount());
+        vo.setTotalCount(coupon.getTotalCount());
+        vo.setReceiveCount(coupon.getReceiveCount());
+        vo.setUsedCount(coupon.getUsedCount());
+        vo.setLimitPerUser(coupon.getLimitPerUser());
+        vo.setValidDays(coupon.getValidDays());
+        vo.setStartTime(coupon.getStartTime());
+        vo.setEndTime(coupon.getEndTime());
+        vo.setStatus(coupon.getStatus());
+        if (coupon.getMerchant() != null) {
+            vo.setMerchantId(coupon.getMerchant().getId());
+        }
+        return vo;
     }
 }

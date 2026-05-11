@@ -1,7 +1,7 @@
 package org.example.shoppingserver.repository;
 
 
-import org.example.shoppingserver.model.entity.Product;
+import org.example.shoppingserver.model.entity.product.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

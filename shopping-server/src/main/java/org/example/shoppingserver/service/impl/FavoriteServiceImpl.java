@@ -1,9 +1,9 @@
 package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.shoppingserver.model.dto.FavoriteDTO;
-import org.example.shoppingserver.model.entity.Favorite;
-import org.example.shoppingserver.model.entity.Product;
+import org.example.shoppingserver.model.vo.favorite.FavoriteVO;
+import org.example.shoppingserver.model.entity.favorite.Favorite;
+import org.example.shoppingserver.model.entity.product.Product;
 import org.example.shoppingserver.model.entity.User;
 import org.example.shoppingserver.repository.FavoriteRepository;
 import org.example.shoppingserver.repository.ProductRepository;
@@ -39,24 +39,24 @@ public class FavoriteServiceImpl implements FavoriteService {
      * @return 收藏分页结果
      */
     @Override
-    public Page<FavoriteDTO> getFavorites(String userId, int pageNum, int pageSize) {
+    public Page<FavoriteVO> getFavorites(String userId, int pageNum, int pageSize) {
         // 修正页码：从0开始
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         return favoriteRepository.findByUserId(userId, pageable).map(favorite -> {
-            FavoriteDTO dto = new FavoriteDTO();
-            dto.setId(favorite.getId());
-            dto.setCreatedAt(favorite.getCreatedAt());
+            FavoriteVO vo = new FavoriteVO();
+            vo.setId(favorite.getId());
+            vo.setCreatedAt(favorite.getCreatedAt());
             
             // 添加空值检查
             if (favorite.getProduct() != null) {
                 Product product = favorite.getProduct();
-                dto.setProductId(product.getId());
-                dto.setProductName(product.getName());
-                dto.setProductImage(product.getImage());
-                dto.setProductPrice(product.getPrice());
+                vo.setProductId(product.getId());
+                vo.setProductName(product.getName());
+                vo.setProductImage(product.getImage());
+                vo.setProductPrice(product.getPrice());
             }
             
-            return dto;
+            return vo;
         });
     }
 

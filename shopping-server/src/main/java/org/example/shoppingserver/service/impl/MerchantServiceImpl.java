@@ -1,12 +1,14 @@
 package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.shoppingserver.model.dto.MerchantApplicationDTO;
-import org.example.shoppingserver.model.dto.MerchantDTO;
-import org.example.shoppingserver.model.entity.AuditStatus;
-import org.example.shoppingserver.model.entity.Merchant;
-import org.example.shoppingserver.model.entity.MerchantApplication;
+import org.example.shoppingserver.model.dto.merchant.*;
+import org.example.shoppingserver.model.entity.common.AuditStatus;
+import org.example.shoppingserver.model.entity.merchant.Merchant;
+import org.example.shoppingserver.model.entity.merchant.MerchantApplication;
 import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.vo.merchant.MerchantApplicationVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantStatisticsVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantVO;
 import org.example.shoppingserver.repository.MerchantApplicationRepository;
 import org.example.shoppingserver.repository.MerchantRepository;
 import org.example.shoppingserver.service.MerchantService;
@@ -62,12 +64,17 @@ public class MerchantServiceImpl implements MerchantService {
     }
 
     @Override
-    public MerchantApplicationDTO getMerchantApplication(String userId) {
-        return convertToApplicationDTO(merchantApplicationRepository.findByUserId(userId));
+    public MerchantApplicationVO getMerchantApplication(String userId) {
+        MerchantApplication application = merchantApplicationRepository.findLatestByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("商家不存在"));
+        if (application == null) {
+            return null;
+        }
+        return convertToApplicationDTO(application);
     }
 
-    private MerchantApplicationDTO convertToApplicationDTO(MerchantApplication application) {
-        MerchantApplicationDTO dto = new MerchantApplicationDTO();
+    private MerchantApplicationVO convertToApplicationDTO(MerchantApplication application) {
+        MerchantApplicationVO dto = new MerchantApplicationVO();
         dto.setId(application.getId());
         dto.setUserId(application.getUser().getId());
         dto.setUsername(application.getUser().getUsername());
@@ -91,7 +98,7 @@ public class MerchantServiceImpl implements MerchantService {
     // ====================== 2. 根据商家ID获取信息 ======================
     @Override
     @Cacheable(value = "merchantInfo", key = "#userId", unless = "#result == null")
-    public MerchantDTO getMerchantInfo(String userId) {
+    public MerchantVO getMerchantInfo(String userId) {
         Merchant merchant = merchantRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("商家不存在"));
         return convert(merchant);
@@ -100,7 +107,7 @@ public class MerchantServiceImpl implements MerchantService {
     // ====================== 3. 根据用户ID获取商家 ======================
     @Override
     @Cacheable(value = "merchantByUserId", key = "#userId", unless = "#result == null")
-    public MerchantDTO getMerchantByUserId(String userId) {
+    public MerchantVO getMerchantByUserId(String userId) {
         Merchant merchant = merchantRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("商家不存在"));
         return convert(merchant);
@@ -110,7 +117,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Override
     @Transactional
     @CacheEvict(value = {"merchantInfo", "merchantByUserId"}, allEntries = true)
-    public MerchantDTO updateMerchantInfo(String userId, MerchantDTO merchantDTO) {
+    public MerchantVO updateMerchantInfo(String userId, MerchantDTO merchantDTO) {
         Merchant merchant = merchantRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("商家不存在"));
 
@@ -130,21 +137,14 @@ public class MerchantServiceImpl implements MerchantService {
 
     // ====================== 5. 商家统计数据 ======================
     @Override
-    public MerchantStatisticsDTO getStatistics(String userId) {
-        MerchantStatisticsDTO dto = new MerchantStatisticsDTO();
-        dto.setTodaySales(0L);
-        dto.setTodayOrders(0);
-        dto.setTodayVisitors(0);
-        dto.setPendingOrders(0);
-        dto.setShippingOrders(0);
-        dto.setTotalProducts(0);
-        dto.setTotalIncome(0L);
+    public MerchantStatisticsVO getStatistics(String userId) {
+        MerchantStatisticsVO dto = new MerchantStatisticsVO();
         return dto;
     }
 
     // ====================== 🔴 最终转换器：完全匹配你的 DTO ======================
-    private MerchantDTO convert(Merchant merchant) {
-        MerchantDTO dto = new MerchantDTO();
+    private MerchantVO convert(Merchant merchant) {
+        MerchantVO dto = new MerchantVO();
         dto.setId(merchant.getId());
         dto.setUserId(merchant.getUserId()); // 你实体没有userId，暂时用merchantId代替
         dto.setStoreName(merchant.getStoreName());

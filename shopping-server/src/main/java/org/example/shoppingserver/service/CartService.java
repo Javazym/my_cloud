@@ -1,10 +1,9 @@
 package org.example.shoppingserver.service;
 
-import org.example.shoppingserver.model.dto.AddCartDTO;
-import org.example.shoppingserver.model.dto.CartItemDTO;
-import org.springframework.stereotype.Service;
+import org.example.shoppingserver.model.dto.cart.AddCartDTO;
+import org.example.shoppingserver.model.vo.cart.CartItemVO;
+import org.example.shoppingserver.model.vo.cart.CartStatisticsVO;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -18,7 +17,7 @@ public interface CartService {
      * @param userId 用户ID
      * @return 购物车商品列表
      */
-    List<CartItemDTO> getCartList(String userId);
+    List<CartItemVO> getCartList(String userId);
 
     /**
      * 获取选中的购物车商品
@@ -26,7 +25,7 @@ public interface CartService {
      * @param userId 用户ID
      * @return 选中的购物车商品列表
      */
-    List<CartItemDTO> getCheckedItems(String userId);
+    List<CartItemVO> getCheckedItems(String userId);
 
     /**
      * 获取购物车商品数量
@@ -43,7 +42,7 @@ public interface CartService {
      * @param addCartDTO 添加DTO
      * @return 购物车商品
      */
-    CartItemDTO addToCart(String userId, AddCartDTO addCartDTO);
+    CartItemVO addToCart(String userId, AddCartDTO addCartDTO);
 
     /**
      * 更新购物车商品数量
@@ -53,14 +52,14 @@ public interface CartService {
      * @param quantity   数量
      * @return 购物车商品
      */
-    CartItemDTO updateQuantity(String userId, Long cartItemId, Integer quantity);
+    CartItemVO updateQuantity(String userId, Long cartItemId, Integer quantity);
 
     /**
      * 选中/取消选中购物车商品
      *
      * @param userId     用户ID
      * @param cartItemId 购物车商品ID
-     * @param checked    是否选中
+     * @param checked    是否选中 (0-否, 1-是)
      * @return 是否成功
      */
     boolean checkItem(String userId, Long cartItemId, Integer checked);
@@ -69,7 +68,7 @@ public interface CartService {
      * 全选/取消全选
      *
      * @param userId  用户ID
-     * @param checked 是否选中
+     * @param checked 是否选中 (0-否, 1-是)
      * @return 是否成功
      */
     boolean checkAll(String userId, Integer checked);
@@ -106,24 +105,5 @@ public interface CartService {
      * @param userId 用户ID
      * @return 统计信息
      */
-    CartStatisticsDTO getStatistics(String userId);
-
-    /**
-     * 购物车统计信息DTO
-     */
-    class CartStatisticsDTO {
-        private Integer totalCount;
-        private Integer selectedCount;
-        private BigDecimal totalAmount;
-        private BigDecimal selectedAmount;
-
-        public Integer getTotalCount() { return totalCount; }
-        public void setTotalCount(Integer totalCount) { this.totalCount = totalCount; }
-        public Integer getSelectedCount() { return selectedCount; }
-        public void setSelectedCount(Integer selectedCount) { this.selectedCount = selectedCount; }
-        public BigDecimal getTotalAmount() { return totalAmount; }
-        public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
-        public BigDecimal getSelectedAmount() { return selectedAmount; }
-        public void setSelectedAmount(BigDecimal selectedAmount) { this.selectedAmount = selectedAmount; }
-    }
+    CartStatisticsVO getStatistics(String userId);
 }

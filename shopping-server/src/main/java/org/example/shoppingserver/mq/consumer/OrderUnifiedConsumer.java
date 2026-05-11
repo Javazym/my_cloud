@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.shoppingserver.common.MessageWrapper;
 import org.example.shoppingserver.common.UserHolder;
-import org.example.shoppingserver.model.dto.CreateOrderDTO;
+import org.example.shoppingserver.model.dto.order.CreateOrderDTO;
 import org.example.shoppingserver.mq.producer.OrderDelayProducer;
 import org.example.shoppingserver.service.impl.OrderServiceImpl;
 import org.example.shoppingserver.util.config.RabbitConfig;

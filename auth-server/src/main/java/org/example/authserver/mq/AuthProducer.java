@@ -1,8 +1,7 @@
 package org.example.authserver.mq;
 
 import org.example.authserver.common.MessageWrapper;
-import org.example.authserver.config.RabbitConfig;
-import org.springframework.amqp.core.Message;
+import org.example.authserver.util.config.RabbitConfig;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

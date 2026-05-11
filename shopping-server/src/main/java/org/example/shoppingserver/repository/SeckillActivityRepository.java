@@ -1,6 +1,6 @@
 package org.example.shoppingserver.repository;
 
-import org.example.shoppingserver.model.entity.SeckillActivity;
+import org.example.shoppingserver.model.entity.marketing.SeckillActivity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

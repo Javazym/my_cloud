@@ -1,8 +1,8 @@
 package org.example.shoppingserver.repository;
 
 
-import org.example.shoppingserver.model.entity.RefundStatus;
-import org.example.shoppingserver.model.entity.OrderRefund;
+import org.example.shoppingserver.model.entity.order.RefundStatus;
+import org.example.shoppingserver.model.entity.order.OrderRefund;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,6 +33,11 @@ public interface OrderRefundRepository extends JpaRepository<OrderRefund, Long> 
     Page<OrderRefund> findByUserId(String userId, Pageable pageable);
 
     /**
+     * 根据用户ID和状态查询退款记录
+     */
+    Page<OrderRefund> findByUserIdAndStatus(String userId, RefundStatus status, Pageable pageable);
+
+    /**
      * 根据商家ID查询退款记录
      */
     Page<OrderRefund> findByMerchantId(Long merchantId, Pageable pageable);
@@ -61,4 +66,9 @@ public interface OrderRefundRepository extends JpaRepository<OrderRefund, Long> 
      * 查询订单的退款记录
      */
     Optional<OrderRefund> findByOrderIdAndStatus(Long orderId, RefundStatus status);
+
+    /**
+     * 检查订单是否有指定状态的退款申请
+     */
+    boolean existsByOrderIdAndStatusIn(Long orderId, List<RefundStatus> statuses);
 }

@@ -1,7 +1,7 @@
 package org.example.shoppingserver.repository;
 
 
-import org.example.shoppingserver.model.entity.ProductSku;
+import org.example.shoppingserver.model.entity.product.ProductSku;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

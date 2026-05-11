@@ -6,7 +6,8 @@ import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import org.example.shoppingserver.common.MessageWrapper;
 import org.example.shoppingserver.model.entity.User;
-import org.example.shoppingserver.model.vo.UserVO;
+
+import org.example.shoppingserver.model.vo.user.UserVO;
 import org.example.shoppingserver.repository.UserRepository;
 import org.example.shoppingserver.service.impl.UserServiceImpl;
 import org.example.shoppingserver.util.config.RabbitConfig;
@@ -34,7 +35,7 @@ public class AuthConsumer {
             UserVO userVO = objectMapper.convertValue(message.getData(), UserVO.class);
             User user = new User();
             user.setId(userVO.getId());
-            user.setNickname(userVO.getRealName());
+            user.setNickname(userVO.getNickname());
             user.setUsername(userVO.getUsername());
             user.setEmail(userVO.getEmail());
             user.setStatus(userVO.getStatus());

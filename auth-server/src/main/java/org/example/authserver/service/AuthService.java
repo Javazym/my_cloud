@@ -1,12 +1,12 @@
 package org.example.authserver.service;
 
-import org.example.authserver.dto.create.AdminCreateDto;
-import org.example.authserver.dto.create.RegisterDto;
-import org.example.authserver.dto.query.AuthCodeDto;
-import org.example.authserver.dto.query.LoginDto;
-import org.example.authserver.dto.query.UserQueryDto;
-import org.example.authserver.dto.update.UserUpdateDto;
-import org.example.authserver.entity.SysUser;
+import org.example.authserver.model.dto.create.AdminCreateDto;
+import org.example.authserver.model.dto.create.RegisterDto;
+import org.example.authserver.model.dto.query.AuthCodeDto;
+import org.example.authserver.model.dto.query.LoginDto;
+import org.example.authserver.model.dto.query.UserQueryDto;
+import org.example.authserver.model.dto.update.UserUpdateDto;
+import org.example.authserver.model.entity.SysUser;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 

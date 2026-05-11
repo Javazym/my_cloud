@@ -1,9 +1,9 @@
 package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.shoppingserver.model.dto.CategoryDTO;
-import org.example.shoppingserver.model.entity.Category;
-import org.example.shoppingserver.model.vo.CategoryVO;
+import org.example.shoppingserver.model.dto.product.CategoryDTO;
+import org.example.shoppingserver.model.entity.common.Category;
+import org.example.shoppingserver.model.vo.product.CategoryVO;
 import org.example.shoppingserver.repository.CategoryRepository;
 import org.example.shoppingserver.service.CategoryService;
 import org.springframework.beans.BeanUtils;

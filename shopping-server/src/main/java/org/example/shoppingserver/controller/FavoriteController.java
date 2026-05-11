@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.common.result.ResponseResult;
-import org.example.shoppingserver.model.dto.FavoriteDTO;
+import org.example.shoppingserver.model.vo.favorite.FavoriteVO;
 import org.example.shoppingserver.service.FavoriteService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -31,11 +31,11 @@ public class FavoriteController {
      * @return 收藏分页结果
      */
     @GetMapping
-    public ResponseResult<Page<FavoriteDTO>> getFavorites(
+    public ResponseResult<Page<FavoriteVO>> getFavorites(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
         String userId = UserHolder.getCurrentUserId();
-        Page<FavoriteDTO> page = favoriteService.getFavorites(userId, pageNum, pageSize);
+        Page<FavoriteVO> page = favoriteService.getFavorites(userId, pageNum, pageSize);
         return ResponseResult.success(page);
     }
 

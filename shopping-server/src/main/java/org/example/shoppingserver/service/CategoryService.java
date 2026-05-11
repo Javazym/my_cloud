@@ -1,8 +1,7 @@
 package org.example.shoppingserver.service;
 
-import org.example.shoppingserver.model.dto.CategoryDTO;
-import org.example.shoppingserver.model.entity.Category;
-import org.example.shoppingserver.model.vo.CategoryVO;
+import org.example.shoppingserver.model.dto.product.CategoryDTO;
+import org.example.shoppingserver.model.vo.product.CategoryVO;
 
 import java.util.List;
 

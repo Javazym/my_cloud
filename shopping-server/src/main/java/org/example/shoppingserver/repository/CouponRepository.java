@@ -1,7 +1,7 @@
 package org.example.shoppingserver.repository;
 
 
-import org.example.shoppingserver.model.entity.Coupon;
+import org.example.shoppingserver.model.entity.coupon.Coupon;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -87,4 +87,15 @@ public interface CouponRepository extends JpaRepository<Coupon, Long>, JpaSpecif
      * 统计商家指定状态的优惠券数量
      */
     long countByMerchantIdAndStatus(Long merchantId, Integer status);
+
+    /**
+     * 查询适用于指定商品的可用优惠券
+     * 包括：全场券、该商家券、包含该商品的券
+     */
+    @Query("SELECT c FROM Coupon c WHERE c.status = 1 AND c.startTime <= :now AND c.endTime >= :now " +
+           "AND (c.totalCount = 0 OR c.receiveCount < c.totalCount) " +
+           "AND (c.scope = 'all' OR c.merchant.id = :merchantId OR c.productIds LIKE %:productId%)")
+    List<Coupon> findAvailableCouponsByProductId(@Param("productId") String productId, 
+                                                  @Param("merchantId") Long merchantId,
+                                                  @Param("now") LocalDateTime now);
 }

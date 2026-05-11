@@ -5,12 +5,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.example.shoppingserver.common.result.ResponseResult;
-import org.example.shoppingserver.model.dto.ProductCreateDTO;
-import org.example.shoppingserver.model.dto.ProductQueryDTO;
-import org.example.shoppingserver.model.dto.ProductUpdateDTO;
-import org.example.shoppingserver.model.entity.Category;
-import org.example.shoppingserver.model.vo.ProductDetailVO;
-import org.example.shoppingserver.model.vo.ProductVO;
+import org.example.shoppingserver.model.dto.product.ProductCreateDTO;
+import org.example.shoppingserver.model.dto.product.ProductQueryDTO;
+import org.example.shoppingserver.model.dto.product.ProductUpdateDTO;
+import org.example.shoppingserver.model.entity.common.Category;
+import org.example.shoppingserver.model.vo.product.ProductDetailVO;
+import org.example.shoppingserver.model.vo.product.ProductVO;
 import org.example.shoppingserver.service.ProductService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;

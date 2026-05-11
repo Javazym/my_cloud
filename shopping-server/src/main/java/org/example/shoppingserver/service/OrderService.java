@@ -1,8 +1,11 @@
 package org.example.shoppingserver.service;
 
-import org.example.shoppingserver.model.dto.CreateOrderDTO;
-import org.example.shoppingserver.model.dto.OrderDTO;
-import org.example.shoppingserver.model.dto.OrderLogisticsDTO;
+import org.example.shoppingserver.model.dto.order.CreateOrderDTO;
+import org.example.shoppingserver.model.dto.order.RefundDTO;
+import org.example.shoppingserver.model.vo.order.OrderVO;
+import org.example.shoppingserver.model.vo.order.RefundVO;
+import org.example.shoppingserver.model.dto.order.OrderLogisticsDTO;
+import org.example.shoppingserver.model.vo.order.OrderStatisticsVO;
 import org.springframework.data.domain.Page;
 
 /**
@@ -17,7 +20,7 @@ public interface OrderService {
      * @param createOrderDTO 创建订单DTO
      * @return 订单信息
      */
-    OrderDTO createOrder(String userId, CreateOrderDTO createOrderDTO);
+    OrderVO createOrder(String userId, CreateOrderDTO createOrderDTO);
 
     /**
      * 获取订单列表（用户端）
@@ -28,7 +31,7 @@ public interface OrderService {
      * @param pageSize 每页数量
      * @return 订单分页结果
      */
-    Page<OrderDTO> getOrders(String userId, Integer status, int pageNum, int pageSize);
+    Page<OrderVO> getOrders(String userId, Integer status, int pageNum, int pageSize);
 
     /**
      * 获取订单列表（商家端）
@@ -39,7 +42,7 @@ public interface OrderService {
      * @param pageSize 每页数量
      * @return 订单分页结果
      */
-    Page<OrderDTO> getMerchantOrders(Long merchantId, Integer status, int pageNum, int pageSize);
+    Page<OrderVO> getMerchantOrders(Long merchantId, Integer status, int pageNum, int pageSize);
 
     /**
      * 获取订单详情
@@ -47,7 +50,7 @@ public interface OrderService {
      * @param orderId 订单ID
      * @return 订单详情
      */
-    OrderDTO getOrderDetail(Long orderId);
+    OrderVO getOrderDetail(Long orderId);
 
     /**
      * 获取订单详情（包含完整物流信息）
@@ -55,7 +58,7 @@ public interface OrderService {
      * @param orderId 订单ID
      * @return 订单详情
      */
-    OrderDTO getOrderDetailWithLogistics(Long orderId);
+    OrderVO getOrderDetailWithLogistics(Long orderId);
 
     /**
      * 取消订单
@@ -89,10 +92,9 @@ public interface OrderService {
      *
      * @param userId  用户ID
      * @param orderId 订单ID
-     * @param payType 支付方式
      * @return 支付结果
      */
-    String payOrder(String userId, Long orderId, String payType);
+    String payOrder(String userId, Long orderId);
 
     /**
      * 模拟支付回调
@@ -122,6 +124,26 @@ public interface OrderService {
     boolean applyRefund(String userId, Long orderId, RefundDTO refundDTO);
 
     /**
+     * 获取用户退款申请列表
+     *
+     * @param userId   用户ID
+     * @param status   退款状态
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 退款申请分页结果
+     */
+    Page<RefundVO> getUserRefunds(String userId, Integer status, int pageNum, int pageSize);
+
+    /**
+     * 获取退款详情
+     *
+     * @param userId   用户ID
+     * @param refundId 退款ID
+     * @return 退款详情
+     */
+    RefundVO getRefundDetail(String userId, Long refundId);
+
+    /**
      * 同意退款申请（商家端）
      *
      * @param merchantId 商家ID
@@ -147,7 +169,7 @@ public interface OrderService {
      * @param pageSize 每页数量
      * @return 退款申请分页结果
      */
-    Page<OrderDTO.RefundVO> getMerchantRefunds(Long merchantId, Integer status, int pageNum, int pageSize);
+    Page<RefundVO> getMerchantRefunds(Long merchantId, Integer status, int pageNum, int pageSize);
 
     /**
      * 获取订单状态
@@ -163,57 +185,14 @@ public interface OrderService {
      * @param merchantId 商家ID
      * @return 订单统计
      */
-    OrderStatistics getMerchantOrderStatistics(Long merchantId);
+    OrderStatisticsVO getMerchantOrderStatistics(Long merchantId);
 
     /**
-     * 退款DTO
+     * 获取商家各状态订单数量统计
+     *
+     * @param merchantId 商家ID
+     * @return 订单状态统计
      */
-    class RefundDTO {
-        private Integer type;
-        private java.math.BigDecimal amount;
-        private String reason;
-        private String description;
+    org.example.shoppingserver.model.vo.order.OrderStatusCountVO getOrderStatusCount(Long merchantId);
 
-        public Integer getType() { return type; }
-        public void setType(Integer type) { this.type = type; }
-        public java.math.BigDecimal getAmount() { return amount; }
-        public void setAmount(java.math.BigDecimal amount) { this.amount = amount; }
-        public String getReason() { return reason; }
-        public void setReason(String reason) { this.reason = reason; }
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-    }
-
-    /**
-     * 订单统计信息
-     */
-    class OrderStatistics {
-        private Long totalOrders;           // 总订单数
-        private Long pendingPayment;        // 待付款
-        private Long pendingShipment;       // 待发货
-        private Long pendingReceipt;        // 待收货
-        private Long completed;             // 已完成
-        private Long cancelled;             // 已取消
-        private java.math.BigDecimal todaySales;      // 今日销售额
-        private java.math.BigDecimal monthSales;      // 本月销售额
-
-        public OrderStatistics() {}
-
-        public Long getTotalOrders() { return totalOrders; }
-        public void setTotalOrders(Long totalOrders) { this.totalOrders = totalOrders; }
-        public Long getPendingPayment() { return pendingPayment; }
-        public void setPendingPayment(Long pendingPayment) { this.pendingPayment = pendingPayment; }
-        public Long getPendingShipment() { return pendingShipment; }
-        public void setPendingShipment(Long pendingShipment) { this.pendingShipment = pendingShipment; }
-        public Long getPendingReceipt() { return pendingReceipt; }
-        public void setPendingReceipt(Long pendingReceipt) { this.pendingReceipt = pendingReceipt; }
-        public Long getCompleted() { return completed; }
-        public void setCompleted(Long completed) { this.completed = completed; }
-        public Long getCancelled() { return cancelled; }
-        public void setCancelled(Long cancelled) { this.cancelled = cancelled; }
-        public java.math.BigDecimal getTodaySales() { return todaySales; }
-        public void setTodaySales(java.math.BigDecimal todaySales) { this.todaySales = todaySales; }
-        public java.math.BigDecimal getMonthSales() { return monthSales; }
-        public void setMonthSales(java.math.BigDecimal monthSales) { this.monthSales = monthSales; }
-    }
 }

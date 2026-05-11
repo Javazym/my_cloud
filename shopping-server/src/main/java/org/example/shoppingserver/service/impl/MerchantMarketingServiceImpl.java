@@ -1,9 +1,20 @@
 package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.shoppingserver.model.entity.*;
+import org.example.shoppingserver.model.dto.coupon.CouponCreateDTO;
+import org.example.shoppingserver.model.vo.coupon.CouponStatisticsVO;
+import org.example.shoppingserver.model.vo.coupon.CouponVO;
+import org.example.shoppingserver.model.dto.coupon.CouponUpdateDTO;
+import org.example.shoppingserver.model.dto.marketing.DiscountActivityDTO;
+import org.example.shoppingserver.model.dto.marketing.SeckillActivityDTO;
+import org.example.shoppingserver.model.entity.coupon.Coupon;
+import org.example.shoppingserver.model.entity.marketing.DiscountActivity;
+import org.example.shoppingserver.model.entity.marketing.SeckillActivity;
+import org.example.shoppingserver.model.entity.merchant.Merchant;
 import org.example.shoppingserver.repository.*;
 import org.example.shoppingserver.service.MerchantMarketingService;
+import org.example.shoppingserver.model.vo.marketing.DiscountActivityVO;
+import org.example.shoppingserver.model.vo.marketing.SeckillActivityVO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -125,14 +136,17 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
      * @return 秒杀活动分页列表
      */
     @Override
-    public Page<SeckillActivity> getSeckillActivities(Long merchantId, Integer status, int pageNum, int pageSize) {
+    public Page<SeckillActivityVO> getSeckillActivities(Long merchantId, Integer status, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         
+        Page<SeckillActivity> page;
         if (status == null) {
-            return seckillActivityRepository.findByMerchantId(merchantId, pageable);
+            page = seckillActivityRepository.findByMerchantId(merchantId, pageable);
         } else {
-            return seckillActivityRepository.findByMerchantIdAndStatus(merchantId, status, pageable);
+            page = seckillActivityRepository.findByMerchantIdAndStatus(merchantId, status, pageable);
         }
+        
+        return page.map(this::convertToSeckillVO);
     }
 
     /**
@@ -143,7 +157,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
      * @return 秒杀活动详情
      */
     @Override
-    public SeckillActivity getSeckillActivityDetail(Long merchantId, Long activityId) {
+    public SeckillActivityVO getSeckillActivityDetail(Long merchantId, Long activityId) {
         SeckillActivity activity = seckillActivityRepository.findById(activityId)
                 .orElseThrow(() -> new RuntimeException("秒杀活动不存在"));
 
@@ -151,7 +165,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
             throw new RuntimeException("无权查看此活动");
         }
 
-        return activity;
+        return convertToSeckillVO(activity);
     }
 
     /**
@@ -295,14 +309,17 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
      * @return 满减活动分页列表
      */
     @Override
-    public Page<DiscountActivity> getDiscountActivities(Long merchantId, Integer status, int pageNum, int pageSize) {
+    public Page<DiscountActivityVO> getDiscountActivities(Long merchantId, Integer status, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         
+        Page<DiscountActivity> page;
         if (status == null) {
-            return discountActivityRepository.findByMerchantId(merchantId, pageable);
+            page = discountActivityRepository.findByMerchantId(merchantId, pageable);
         } else {
-            return discountActivityRepository.findByMerchantIdAndStatus(merchantId, status, pageable);
+            page = discountActivityRepository.findByMerchantIdAndStatus(merchantId, status, pageable);
         }
+        
+        return page.map(this::convertToDiscountVO);
     }
 
     /**
@@ -313,7 +330,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
      * @return 满减活动详情
      */
     @Override
-    public DiscountActivity getDiscountActivityDetail(Long merchantId, Long activityId) {
+    public DiscountActivityVO getDiscountActivityDetail(Long merchantId, Long activityId) {
         DiscountActivity activity = discountActivityRepository.findById(activityId)
                 .orElseThrow(() -> new RuntimeException("满减活动不存在"));
 
@@ -321,7 +338,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
             throw new RuntimeException("无权查看此活动");
         }
 
-        return activity;
+        return convertToDiscountVO(activity);
     }
 
     /**
@@ -401,11 +418,11 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
      */
     @Override
     @Transactional
-    public Long createCoupon(Long merchantId, CouponCreateDTO dto) {
-        Merchant merchant = merchantRepository.findById(merchantId)
+    public Long createCoupon(String merchantId, CouponCreateDTO dto) {
+        Merchant merchant = merchantRepository.findByUserId(merchantId)
                 .orElseThrow(() -> new RuntimeException("商家不存在"));
 
-        org.example.shoppingserver.model.entity.Coupon coupon = new org.example.shoppingserver.model.entity.Coupon();
+        Coupon coupon = new Coupon();
         coupon.setMerchant(merchant);
         coupon.setName(dto.getName());
         coupon.setType(dto.getType());
@@ -416,7 +433,6 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
         coupon.setReceiveCount(0);
         coupon.setUsedCount(0);
         coupon.setLimitPerUser(dto.getLimitPerUser());
-        coupon.setValidDays(dto.getValidDays());
         coupon.setStartTime(dto.getStartTime());
         coupon.setEndTime(dto.getEndTime());
         coupon.setStatus(1);
@@ -434,7 +450,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
     @Override
     @Transactional
     public void updateCoupon(Long merchantId, Long couponId, CouponUpdateDTO dto) {
-        org.example.shoppingserver.model.entity.Coupon coupon = couponRepository.findById(couponId)
+        Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new RuntimeException("优惠券不存在"));
 
         if (!coupon.getMerchant().getId().equals(merchantId)) {
@@ -462,7 +478,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
     @Override
     @Transactional
     public void deleteCoupon(Long merchantId, Long couponId) {
-        org.example.shoppingserver.model.entity.Coupon coupon = couponRepository.findById(couponId)
+        Coupon coupon = couponRepository.findById(couponId)
                 .orElseThrow(() -> new RuntimeException("优惠券不存在"));
 
         if (!coupon.getMerchant().getId().equals(merchantId)) {
@@ -482,14 +498,17 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
      * @return 优惠券分页列表
      */
     @Override
-    public Page<org.example.shoppingserver.model.entity.Coupon> getMerchantCoupons(Long merchantId, Integer status, int pageNum, int pageSize) {
+    public Page<CouponVO> getMerchantCoupons(Long merchantId, Integer status, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         
+        Page<Coupon> page;
         if (status == null) {
-            return couponRepository.findByMerchantId(merchantId, pageable);
+            page = couponRepository.findByMerchantId(merchantId, pageable);
         } else {
-            return couponRepository.findByMerchantIdAndStatus(merchantId, status, pageable);
+            page = couponRepository.findByMerchantIdAndStatus(merchantId, status, pageable);
         }
+        
+        return page.map(this::convertToCouponVO);
     }
 
     /**
@@ -499,8 +518,8 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
      * @return 优惠券统计数据
      */
     @Override
-    public CouponStatistics getCouponStatistics(Long merchantId) {
-        CouponStatistics statistics = new CouponStatistics();
+    public CouponStatisticsVO getCouponStatistics(Long merchantId) {
+        CouponStatisticsVO statistics = new CouponStatisticsVO();
         
         // 总优惠券数
         statistics.setTotalCoupons(couponRepository.countByMerchantId(merchantId));
@@ -513,5 +532,78 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
         statistics.setTotalUsed(userCouponRepository.countByCouponMerchantIdAndStatus(merchantId, 1));
 
         return statistics;
+    }
+
+    // ==================== 转换方法 ====================
+
+    /**
+     * 转换 SeckillActivity 到 SeckillActivityVO
+     */
+    private SeckillActivityVO convertToSeckillVO(SeckillActivity activity) {
+        SeckillActivityVO vo = new SeckillActivityVO();
+        vo.setId(activity.getId());
+        vo.setMerchantId(activity.getMerchant().getId());
+        vo.setName(activity.getName());
+        vo.setProductId(activity.getProductId());
+        vo.setSkuId(activity.getSkuId());
+        vo.setSeckillPrice(activity.getSeckillPrice());
+        vo.setOriginalPrice(activity.getOriginalPrice());
+        vo.setStock(activity.getStock());
+        vo.setSoldCount(activity.getSoldCount());
+        vo.setLimitPerUser(activity.getLimitPerUser());
+        vo.setStartTime(activity.getStartTime());
+        vo.setEndTime(activity.getEndTime());
+        vo.setStatus(activity.getStatus());
+        vo.setSort(activity.getSort());
+        return vo;
+    }
+
+    /**
+     * 转换 DiscountActivity 到 DiscountActivityVO
+     */
+    private DiscountActivityVO convertToDiscountVO(DiscountActivity activity) {
+        DiscountActivityVO vo = new DiscountActivityVO();
+        vo.setId(activity.getId());
+        vo.setMerchantId(activity.getMerchant().getId());
+        vo.setName(activity.getName());
+        vo.setDescription(activity.getDescription());
+        vo.setDiscountType(activity.getDiscountType());
+        vo.setConditionValue(activity.getConditionValue());
+        vo.setDiscountAmount(activity.getDiscountAmount());
+        vo.setMaxDiscount(activity.getMaxDiscount());
+        vo.setStartTime(activity.getStartTime());
+        vo.setEndTime(activity.getEndTime());
+        vo.setStatus(activity.getStatus());
+        vo.setScopeType(activity.getScopeType());
+        vo.setScopeIds(activity.getScopeIds());
+        vo.setLimitPerUser(activity.getLimitPerUser());
+        vo.setUsedCount(activity.getUsedCount());
+        vo.setSort(activity.getSort());
+        return vo;
+    }
+
+    /**
+     * 转换 Coupon 到 CouponVO
+     */
+    private CouponVO convertToCouponVO(Coupon coupon) {
+        CouponVO vo = new CouponVO();
+        vo.setId(coupon.getId());
+        vo.setName(coupon.getName());
+        vo.setType(coupon.getType());
+        vo.setValue(coupon.getValue());
+        vo.setMinAmount(coupon.getMinAmount());
+        vo.setMaxDiscount(coupon.getMaxDiscount());
+        vo.setTotalCount(coupon.getTotalCount());
+        vo.setReceiveCount(coupon.getReceiveCount());
+        vo.setUsedCount(coupon.getUsedCount());
+        vo.setLimitPerUser(coupon.getLimitPerUser());
+        vo.setValidDays(coupon.getValidDays());
+        vo.setStartTime(coupon.getStartTime());
+        vo.setEndTime(coupon.getEndTime());
+        vo.setStatus(coupon.getStatus());
+        if (coupon.getMerchant() != null) {
+            vo.setMerchantId(coupon.getMerchant().getId());
+        }
+        return vo;
     }
 }

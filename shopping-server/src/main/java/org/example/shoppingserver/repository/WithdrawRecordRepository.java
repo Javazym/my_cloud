@@ -1,7 +1,7 @@
 package org.example.shoppingserver.repository;
 
 
-import org.example.shoppingserver.model.entity.WithdrawRecord;
+import org.example.shoppingserver.model.entity.finance.WithdrawRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

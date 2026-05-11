@@ -1,6 +1,7 @@
 package org.example.shoppingserver.service;
 
-import org.example.shoppingserver.model.dto.FavoriteDTO;
+
+import org.example.shoppingserver.model.vo.favorite.FavoriteVO;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +19,7 @@ public interface FavoriteService {
      * @param pageSize 每页数量
      * @return 收藏分页结果
      */
-    Page<FavoriteDTO> getFavorites(String userId, int pageNum, int pageSize);
+    Page<FavoriteVO> getFavorites(String userId, int pageNum, int pageSize);
 
     /**
      * 添加收藏

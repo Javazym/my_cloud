@@ -4,8 +4,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.common.result.ResponseResult;
-import org.example.shoppingserver.model.dto.CreateOrderDTO;
-import org.example.shoppingserver.model.dto.OrderDTO;
+import org.example.shoppingserver.model.dto.order.CreateOrderDTO;
+import org.example.shoppingserver.model.dto.order.RefundDTO;
+import org.example.shoppingserver.model.vo.order.OrderVO;
+import org.example.shoppingserver.model.vo.order.RefundVO;
 import org.example.shoppingserver.service.OrderService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -27,9 +29,9 @@ public class OrderController {
      * @return 订单信息
      */
     @PostMapping
-    public ResponseResult<OrderDTO> createOrder(@Valid @RequestBody CreateOrderDTO createOrderDTO) {
+    public ResponseResult<OrderVO> createOrder(@Valid @RequestBody CreateOrderDTO createOrderDTO) {
         String userId = UserHolder.getCurrentUserId();
-        OrderDTO order = orderService.createOrder(userId, createOrderDTO);
+        OrderVO order = orderService.createOrder(userId, createOrderDTO);
         return ResponseResult.success(order);
     }
 
@@ -42,12 +44,12 @@ public class OrderController {
      * @return 订单分页结果
      */
     @GetMapping
-    public ResponseResult<Page<OrderDTO>> getOrders(
+    public ResponseResult<Page<OrderVO>> getOrders(
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
         String userId = UserHolder.getCurrentUserId();
-        Page<OrderDTO> orders = orderService.getOrders(userId, status, pageNum, pageSize);
+        Page<OrderVO> orders = orderService.getOrders(userId, status, pageNum, pageSize);
         return ResponseResult.success(orders);
     }
 
@@ -58,8 +60,8 @@ public class OrderController {
      * @return 订单详情
      */
     @GetMapping("/{orderId}")
-    public ResponseResult<OrderDTO> getOrderDetail(@PathVariable Long orderId) {
-        OrderDTO order = orderService.getOrderDetailWithLogistics(orderId);
+    public ResponseResult<OrderVO> getOrderDetail(@PathVariable Long orderId) {
+        OrderVO order = orderService.getOrderDetailWithLogistics(orderId);
         return ResponseResult.success(order);
     }
 
@@ -106,15 +108,13 @@ public class OrderController {
      * 支付订单
      *
      * @param orderId 订单ID
-     * @param payType 支付方式(alipay/wechat)
      * @return 支付结果
      */
     @PostMapping("/{orderId}/pay")
     public ResponseResult<String> payOrder(
-            @PathVariable Long orderId,
-            @RequestParam String payType) {
+            @PathVariable Long orderId) {
         String userId = UserHolder.getCurrentUserId();
-        String result = orderService.payOrder(userId, orderId, payType);
+        String result = orderService.payOrder(userId, orderId);
         return ResponseResult.success(result);
     }
 
@@ -126,11 +126,106 @@ public class OrderController {
      * @return 操作结果
      */
     @PostMapping("/{orderId}/refund")
-    public ResponseResult<Void> applyRefund(
+    public ResponseResult<?> applyRefund(
             @PathVariable Long orderId,
-            @Valid @RequestBody OrderService.RefundDTO refundDTO) {
+            @Valid @RequestBody RefundDTO refundDTO) {
         String userId = UserHolder.getCurrentUserId();
         orderService.applyRefund(userId, orderId, refundDTO);
         return ResponseResult.success();
+    }
+
+    /**
+     * 获取用户退款申请列表
+     *
+     * @param status   退款状态(可选)
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 退款申请分页结果
+     */
+    @GetMapping("/refunds")
+    public ResponseResult<Page<RefundVO>> getUserRefunds(
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        String userId = UserHolder.getCurrentUserId();
+        Page<RefundVO> refunds = orderService.getUserRefunds(userId, status, pageNum, pageSize);
+        return ResponseResult.success(refunds);
+    }
+
+    /**
+     * 获取退款详情
+     *
+     * @param refundId 退款ID
+     * @return 退款详情
+     */
+    @GetMapping("/refunds/{refundId}")
+    public ResponseResult<RefundVO> getRefundDetail(@PathVariable Long refundId) {
+        String userId = UserHolder.getCurrentUserId();
+        RefundVO refund = orderService.getRefundDetail(userId, refundId);
+        return ResponseResult.success(refund);
+    }
+
+    /**
+     * 获取申请中的退款列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 退款申请分页结果
+     */
+    @GetMapping("/refunds/status/applying")
+    public ResponseResult<Page<RefundVO>> getApplyingRefunds(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        String userId = UserHolder.getCurrentUserId();
+        Page<RefundVO> refunds = orderService.getUserRefunds(userId, 0, pageNum, pageSize);
+        return ResponseResult.success(refunds);
+    }
+
+    /**
+     * 获取已同意的退款列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 退款申请分页结果
+     */
+    @GetMapping("/refunds/status/agreed")
+    public ResponseResult<Page<RefundVO>> getAgreedRefunds(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        String userId = UserHolder.getCurrentUserId();
+        Page<RefundVO> refunds = orderService.getUserRefunds(userId, 1, pageNum, pageSize);
+        return ResponseResult.success(refunds);
+    }
+
+    /**
+     * 获取已拒绝的退款列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 退款申请分页结果
+     */
+    @GetMapping("/refunds/status/rejected")
+    public ResponseResult<Page<RefundVO>> getRejectedRefunds(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        String userId = UserHolder.getCurrentUserId();
+        Page<RefundVO> refunds = orderService.getUserRefunds(userId, 2, pageNum, pageSize);
+        return ResponseResult.success(refunds);
+    }
+
+    /**
+     * 获取已退款的列表
+     *
+     * @param pageNum  页码
+     * @param pageSize 每页数量
+     * @return 退款申请分页结果
+     */
+    @GetMapping("/refunds/status/refunded")
+    public ResponseResult<Page<RefundVO>> getRefundedOrders(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        String userId = UserHolder.getCurrentUserId();
+        Page<RefundVO> refunds = orderService.getUserRefunds(userId, 3, pageNum, pageSize);
+        return ResponseResult.success(refunds);
     }
 }

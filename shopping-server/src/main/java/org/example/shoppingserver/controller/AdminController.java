@@ -3,13 +3,24 @@ package org.example.shoppingserver.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.shoppingserver.common.result.ResponseResult;
-import org.example.shoppingserver.model.dto.*;
-import org.example.shoppingserver.model.vo.CategoryVO;
-import org.example.shoppingserver.model.vo.ProductVO;
+
+import org.example.shoppingserver.model.dto.product.CategoryDTO;
+import org.example.shoppingserver.model.vo.admin.PlatformStatisticsVO;
+import org.example.shoppingserver.model.vo.finance.FinanceStatisticsVO;
+import org.example.shoppingserver.model.vo.finance.WithdrawRecordVO;
+import org.example.shoppingserver.model.vo.marketing.AnnouncementVO;
+import org.example.shoppingserver.model.vo.marketing.BannerVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantApplicationVO;
+import org.example.shoppingserver.model.dto.merchant.MerchantAuditDTO;
+import org.example.shoppingserver.model.vo.merchant.MerchantVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantGroupVO;
+import org.example.shoppingserver.model.vo.order.OrderVO;
+import org.example.shoppingserver.model.vo.product.CategoryVO;
+import org.example.shoppingserver.model.vo.product.ProductVO;
 import org.example.shoppingserver.service.AdminService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
-
+import org.example.shoppingserver.model.vo.user.UserVO;
 import java.util.List;
 
 /**
@@ -25,23 +36,23 @@ public class AdminController {
 
  private final AdminService adminService;
 
- /**
- * 管理员登录
- */
- @PostMapping("/login")
- public ResponseResult<AdminDTO> login( @RequestParam String username, @RequestParam String password) {
- AdminDTO admin = adminService.login(username, password);
- return ResponseResult.success(admin);
- }
-
- /**
- * 获取当前登录管理员
- */
- @GetMapping("/current")
- public ResponseResult<AdminDTO> getCurrentAdmin() {
- AdminDTO admin = adminService.getCurrentAdmin();
- return ResponseResult.success(admin);
- }
+// /**
+// * 管理员登录
+// */
+// @PostMapping("/login")
+// public ResponseResult<AdminDTO> login(@RequestParam String username, @RequestParam String password) {
+// AdminDTO admin = adminService.login(username, password);
+// return ResponseResult.success(admin);
+// }
+//
+// /**
+// * 获取当前登录管理员
+// */
+// @GetMapping("/current")
+// public ResponseResult<AdminDTO> getCurrentAdmin() {
+// AdminDTO admin = adminService.getCurrentAdmin();
+// return ResponseResult.success(admin);
+// }
 
  /**
  * 修改密码
@@ -74,8 +85,8 @@ public class AdminController {
  * 获取平台统计数据
  */
  @GetMapping("/statistics")
- public ResponseResult<AdminService.PlatformStatisticsDTO> getPlatformStatistics() {
- AdminService.PlatformStatisticsDTO statistics = adminService.getPlatformStatistics();
+ public ResponseResult<PlatformStatisticsVO> getPlatformStatistics() {
+ PlatformStatisticsVO statistics = adminService.getPlatformStatistics();
  return ResponseResult.success(statistics);
  }
 
@@ -85,8 +96,8 @@ public class AdminController {
  * 获取待审核的商家申请列表
  */
  @GetMapping("/merchant-applications/pending")
- public ResponseResult<Page<MerchantApplicationDTO>> getPendingApplications( @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
- Page<MerchantApplicationDTO> applications = adminService.getPendingApplications(pageNum, pageSize);
+ public ResponseResult<Page<MerchantApplicationVO>> getPendingApplications(@RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
+ Page<MerchantApplicationVO> applications = adminService.getPendingApplications(pageNum, pageSize);
  return ResponseResult.success(applications);
  }
 
@@ -94,8 +105,8 @@ public class AdminController {
  * 获取所有商家申请列表
  */
  @GetMapping("/merchant-applications/all")
- public ResponseResult<Page<MerchantApplicationDTO>> getAllApplications( @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
- Page<MerchantApplicationDTO> applications = adminService.getAllApplications(pageNum, pageSize);
+ public ResponseResult<Page<MerchantApplicationVO>> getAllApplications( @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
+ Page<MerchantApplicationVO> applications = adminService.getAllApplications(pageNum, pageSize);
  return ResponseResult.success(applications);
  }
 
@@ -114,8 +125,8 @@ public class AdminController {
  * 获取所有商家列表
  */
  @GetMapping("/merchants/all")
- public ResponseResult<Page<MerchantDTO>> getAllMerchants( @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
- Page<MerchantDTO> merchants = adminService.getAllMerchants(pageNum, pageSize);
+ public ResponseResult<Page<MerchantVO>> getAllMerchants(@RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
+ Page<MerchantVO> merchants = adminService.getAllMerchants(pageNum, pageSize);
  return ResponseResult.success(merchants);
  }
 
@@ -123,8 +134,8 @@ public class AdminController {
  * 根据状态获取商家列表
  */
  @GetMapping("/merchants/by-status")
- public ResponseResult<Page<MerchantDTO>> getMerchantsByStatus( @RequestParam Integer status, @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
- Page<MerchantDTO> merchants = adminService.getMerchantsByStatus(status, pageNum, pageSize);
+ public ResponseResult<Page<MerchantVO>> getMerchantsByStatus( @RequestParam Integer status, @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
+ Page<MerchantVO> merchants = adminService.getMerchantsByStatus(status, pageNum, pageSize);
  return ResponseResult.success(merchants);
  }
 
@@ -132,8 +143,8 @@ public class AdminController {
  * 根据审核状态获取商家列表
  */
  @GetMapping("/merchants/by-audit-status")
- public ResponseResult<Page<MerchantApplicationDTO>> getMerchantsByAuditStatus( @RequestParam Integer auditStatus, @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
- Page<MerchantApplicationDTO> merchants = adminService.getMerchantsByAuditStatus(auditStatus, pageNum, pageSize);
+ public ResponseResult<Page<MerchantApplicationVO>> getMerchantsByAuditStatus( @RequestParam Integer auditStatus, @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
+ Page<MerchantApplicationVO> merchants = adminService.getMerchantsByAuditStatus(auditStatus, pageNum, pageSize);
  return ResponseResult.success(merchants);
  }
 
@@ -141,8 +152,8 @@ public class AdminController {
  * 获取商家详情
  */
  @GetMapping("/merchants/{id}")
- public ResponseResult<MerchantDTO> getMerchantDetail( @PathVariable Long id) {
- MerchantDTO merchant = adminService.getMerchantDetail(id);
+ public ResponseResult<MerchantVO> getMerchantDetail( @PathVariable Long id) {
+ MerchantVO merchant = adminService.getMerchantDetail(id);
  return ResponseResult.success(merchant);
  }
 
@@ -170,8 +181,8 @@ public class AdminController {
  * 按主营类目分组展示商家
  */
  @GetMapping("/merchants/grouped")
- public ResponseResult<List<MerchantGroupDTO>> getMerchantsGroupedByCategory() {
- List<MerchantGroupDTO> groups = adminService.getMerchantsGroupedByCategory();
+ public ResponseResult<List<MerchantGroupVO>> getMerchantsGroupedByCategory() {
+ List<MerchantGroupVO> groups = adminService.getMerchantsGroupedByCategory();
  return ResponseResult.success(groups);
  }
 
@@ -179,8 +190,8 @@ public class AdminController {
  * 获取指定类目的商家列表
  */
  @GetMapping("/merchants/by-category")
- public ResponseResult<Page<MerchantDTO>> getMerchantsByCategory( @RequestParam String category, @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
- Page<MerchantDTO> merchants = adminService.getMerchantsByCategory(category, pageNum, pageSize);
+ public ResponseResult<Page<MerchantVO>> getMerchantsByCategory( @RequestParam String category, @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
+ Page<MerchantVO> merchants = adminService.getMerchantsByCategory(category, pageNum, pageSize);
  return ResponseResult.success(merchants);
  }
 
@@ -194,10 +205,10 @@ public class AdminController {
   * @return 用户分页列表
   */
  @GetMapping("/users")
- public ResponseResult<Page<UserDTO>> getUserList(
+ public ResponseResult<Page<UserVO>> getUserList(
          @RequestParam(defaultValue = "1") int pageNum,
          @RequestParam(defaultValue = "10") int pageSize) {
-     Page<UserDTO> users = adminService.getUserList(pageNum, pageSize);
+     Page<UserVO> users = adminService.getUserList(pageNum, pageSize);
      return ResponseResult.success(users);
  }
 
@@ -210,11 +221,11 @@ public class AdminController {
   * @return 用户分页列表
   */
  @GetMapping("/users/by-status")
- public ResponseResult<Page<UserDTO>> getUsersByStatus(
+ public ResponseResult<Page<UserVO>> getUsersByStatus(
          @RequestParam Integer status,
          @RequestParam(defaultValue = "1") int pageNum,
          @RequestParam(defaultValue = "10") int pageSize) {
-     Page<UserDTO> users = adminService.getUsersByStatus(status, pageNum, pageSize);
+     Page<UserVO> users = adminService.getUsersByStatus(status, pageNum, pageSize);
      return ResponseResult.success(users);
  }
 
@@ -225,8 +236,8 @@ public class AdminController {
   * @return 用户详情
   */
  @GetMapping("/users/{userId}")
- public ResponseResult<UserDTO> getUserDetail(@PathVariable String userId) {
-     UserDTO user = adminService.getUserDetail(userId);
+ public ResponseResult<UserVO> getUserDetail(@PathVariable String userId) {
+     UserVO user = adminService.getUserDetail(userId);
      return ResponseResult.success(user);
  }
 
@@ -268,11 +279,11 @@ public class AdminController {
   * @return 订单分页列表
   */
  @GetMapping("/orders")
- public ResponseResult<Page<OrderDTO>> getOrderList(
+ public ResponseResult<Page<OrderVO>> getOrderList(
          @RequestParam(required = false) Integer status,
          @RequestParam(defaultValue = "1") int pageNum,
          @RequestParam(defaultValue = "10") int pageSize) {
-     Page<OrderDTO> orders = adminService.getOrderList(status, pageNum, pageSize);
+     Page<OrderVO> orders = adminService.getOrderList(status, pageNum, pageSize);
      return ResponseResult.success(orders);
  }
 
@@ -283,8 +294,8 @@ public class AdminController {
   * @return 订单详情
   */
  @GetMapping("/orders/{orderId}")
- public ResponseResult<OrderDTO> getOrderDetail(@PathVariable Long orderId) {
-     OrderDTO order = adminService.getOrderDetail(orderId);
+ public ResponseResult<OrderVO> getOrderDetail(@PathVariable Long orderId) {
+     OrderVO order = adminService.getOrderDetail(orderId);
      return ResponseResult.success(order);
  }
 
@@ -448,11 +459,11 @@ public class AdminController {
   * @return 提现申请分页列表
   */
  @GetMapping("/finance/withdraws")
- public ResponseResult<Page<WithdrawRecordDTO>> getWithdrawRecords(
+ public ResponseResult<Page<WithdrawRecordVO>> getWithdrawRecords(
          @RequestParam(required = false) Integer status,
          @RequestParam(defaultValue = "1") int pageNum,
          @RequestParam(defaultValue = "10") int pageSize) {
-     Page<WithdrawRecordDTO> records = adminService.getWithdrawRecords(status, pageNum, pageSize);
+     Page<WithdrawRecordVO> records = adminService.getWithdrawRecords(status, pageNum, pageSize);
      return ResponseResult.success(records);
  }
 
@@ -479,8 +490,8 @@ public class AdminController {
   * @return 财务统计数据
   */
  @GetMapping("/finance/statistics")
- public ResponseResult<AdminService.FinanceStatistics> getFinanceStatistics() {
-     AdminService.FinanceStatistics statistics = adminService.getFinanceStatistics();
+ public ResponseResult<FinanceStatisticsVO> getFinanceStatistics() {
+     FinanceStatisticsVO statistics = adminService.getFinanceStatistics();
      return ResponseResult.success(statistics);
  }
 
@@ -492,8 +503,8 @@ public class AdminController {
   * @return 轮播图列表
   */
  @GetMapping("/marketing/banners")
- public ResponseResult<List<BannerDTO>> getBanners() {
-     List<BannerDTO> banners = adminService.getBanners();
+ public ResponseResult<List<BannerVO>> getBanners() {
+     List<BannerVO> banners = adminService.getBanners();
      return ResponseResult.success(banners);
  }
 
@@ -504,7 +515,7 @@ public class AdminController {
   * @return 轮播图ID
   */
  @PostMapping("/marketing/banners")
- public ResponseResult<Long> createBanner(@RequestBody BannerDTO dto) {
+ public ResponseResult<Long> createBanner(@RequestBody BannerVO dto) {
      Long bannerId = adminService.createBanner(dto);
      return ResponseResult.success(bannerId);
  }
@@ -519,7 +530,7 @@ public class AdminController {
  @PutMapping("/marketing/banners/{bannerId}")
  public ResponseResult<Void> updateBanner(
          @PathVariable Long bannerId,
-         @RequestBody BannerDTO dto) {
+         @RequestBody BannerVO dto) {
      adminService.updateBanner(bannerId, dto);
      return ResponseResult.success();
  }
@@ -558,9 +569,9 @@ public class AdminController {
   * @return 公告列表
   */
  @GetMapping("/marketing/announcements")
- public ResponseResult<List<AnnouncementDTO>> getAnnouncements(
+ public ResponseResult<List<AnnouncementVO>> getAnnouncements(
          @RequestParam(required = false) Integer type) {
-     List<AnnouncementDTO> announcements = adminService.getAnnouncements(type);
+     List<AnnouncementVO> announcements = adminService.getAnnouncements(type);
      return ResponseResult.success(announcements);
  }
 
@@ -571,7 +582,7 @@ public class AdminController {
   * @return 公告ID
   */
  @PostMapping("/marketing/announcements")
- public ResponseResult<Long> createAnnouncement(@RequestBody AnnouncementDTO dto) {
+ public ResponseResult<Long> createAnnouncement(@RequestBody AnnouncementVO dto) {
      Long announcementId = adminService.createAnnouncement(dto);
      return ResponseResult.success(announcementId);
  }
@@ -586,7 +597,7 @@ public class AdminController {
  @PutMapping("/marketing/announcements/{announcementId}")
  public ResponseResult<Void> updateAnnouncement(
          @PathVariable Long announcementId,
-         @RequestBody AnnouncementDTO dto) {
+         @RequestBody AnnouncementVO dto) {
      adminService.updateAnnouncement(announcementId, dto);
      return ResponseResult.success();
  }

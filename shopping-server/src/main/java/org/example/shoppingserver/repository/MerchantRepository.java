@@ -1,8 +1,8 @@
 package org.example.shoppingserver.repository;
 
 
-import org.example.shoppingserver.model.entity.AuditStatus;
-import org.example.shoppingserver.model.entity.Merchant;
+import org.example.shoppingserver.model.entity.common.AuditStatus;
+import org.example.shoppingserver.model.entity.merchant.Merchant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

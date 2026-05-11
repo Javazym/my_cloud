@@ -5,12 +5,11 @@ import lombok.RequiredArgsConstructor;
 
 import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.common.result.ResponseResult;
-import org.example.shoppingserver.model.dto.MerchantApplicationDTO;
-import org.example.shoppingserver.model.dto.MerchantDTO;
-import org.example.shoppingserver.model.entity.MerchantApplication;
+import org.example.shoppingserver.model.dto.merchant.*;
+import org.example.shoppingserver.model.vo.merchant.MerchantVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantApplicationVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantStatisticsVO;
 import org.example.shoppingserver.service.MerchantService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -29,7 +28,7 @@ public class MerchantController {
  */
  @PostMapping("/apply")
  public ResponseResult<Boolean> applySettle(
- @RequestBody MerchantService.ApplySettleDTO applyDTO) {
+ @RequestBody ApplySettleDTO applyDTO) {
  boolean result = merchantService.applySettle(UserHolder.getCurrentUserId(), applyDTO);
  return ResponseResult.success(result);
  }
@@ -38,8 +37,8 @@ public class MerchantController {
  * 获取商家信息
  */
  @GetMapping()
- public ResponseResult<MerchantDTO> getMerchantInfo() {
- MerchantDTO merchant = merchantService.getMerchantInfo(UserHolder.getCurrentUserId());
+ public ResponseResult<MerchantVO> getMerchantInfo() {
+ MerchantVO merchant = merchantService.getMerchantInfo(UserHolder.getCurrentUserId());
  return ResponseResult.success(merchant);
  }
 
@@ -47,7 +46,7 @@ public class MerchantController {
  * 获取商家入驻信息
  */
  @GetMapping("/apply")
- public ResponseResult<MerchantApplicationDTO> getApplyInfo() {
+ public ResponseResult<MerchantApplicationVO> getApplyInfo() {
  return ResponseResult.success(merchantService.
  getMerchantApplication(UserHolder.getCurrentUserId()));
  }
@@ -56,8 +55,8 @@ public class MerchantController {
  * 根据用户ID获取商家信息
  */
  @GetMapping("/by-user")
- public ResponseResult<MerchantDTO> getMerchantByUserId() {
- MerchantDTO merchant = merchantService.getMerchantByUserId(UserHolder.getCurrentUserId());
+ public ResponseResult<MerchantVO> getMerchantByUserId() {
+ MerchantVO merchant = merchantService.getMerchantByUserId(UserHolder.getCurrentUserId());
  return ResponseResult.success(merchant);
  }
 
@@ -65,9 +64,9 @@ public class MerchantController {
  * 更新商家信息
  */
  @PutMapping("/{merchantId}")
- public ResponseResult<MerchantDTO> updateMerchantInfo(
+ public ResponseResult<MerchantVO> updateMerchantInfo(
  @RequestBody MerchantDTO merchantDTO) {
- MerchantDTO merchant = merchantService.updateMerchantInfo(UserHolder.getCurrentUserId(), merchantDTO);
+ MerchantVO merchant = merchantService.updateMerchantInfo(UserHolder.getCurrentUserId(), merchantDTO);
  return ResponseResult.success(merchant);
  }
 
@@ -75,8 +74,8 @@ public class MerchantController {
  * 获取商家统计数据
  */
  @GetMapping("/{merchantId}/statistics")
- public ResponseResult<MerchantService.MerchantStatisticsDTO> getStatistics() {
- MerchantService.MerchantStatisticsDTO statistics = merchantService.getStatistics(UserHolder.getCurrentUserId());
+ public ResponseResult<MerchantStatisticsVO> getStatistics() {
+ MerchantStatisticsVO statistics = merchantService.getStatistics(UserHolder.getCurrentUserId());
  return ResponseResult.success(statistics);
  }
 }

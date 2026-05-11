@@ -1,12 +1,23 @@
 package org.example.shoppingserver.service;
 
-import org.example.shoppingserver.model.dto.*;
-import org.example.shoppingserver.model.vo.CategoryVO;
-import org.example.shoppingserver.model.vo.ProductVO;
+import org.example.shoppingserver.model.dto.merchant.MerchantAuditDTO;
+import org.example.shoppingserver.model.dto.product.CategoryDTO;
+import org.example.shoppingserver.model.vo.admin.AdminVO;
+import org.example.shoppingserver.model.vo.admin.PlatformStatisticsVO;
+import org.example.shoppingserver.model.vo.finance.FinanceStatisticsVO;
+import org.example.shoppingserver.model.vo.finance.WithdrawRecordVO;
+import org.example.shoppingserver.model.vo.marketing.AnnouncementVO;
+import org.example.shoppingserver.model.vo.marketing.BannerVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantApplicationVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantGroupVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantVO;
+import org.example.shoppingserver.model.vo.order.OrderVO;
+import org.example.shoppingserver.model.vo.user.UserVO;
+import org.example.shoppingserver.model.vo.product.CategoryVO;
+import org.example.shoppingserver.model.vo.product.ProductVO;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
-
 /**
  * 管理员Service接口
  */
@@ -19,14 +30,14 @@ public interface AdminService {
      * @param password 密码
      * @return 管理员信息
      */
-    AdminDTO login(String username, String password);
+    AdminVO login(String username, String password);
 
     /**
      * 获取当前登录管理员
      *
      * @return 管理员信息
      */
-    AdminDTO getCurrentAdmin();
+    AdminVO getCurrentAdmin();
 
     /**
      * 修改密码
@@ -57,7 +68,7 @@ public interface AdminService {
      *
      * @return 统计数据
      */
-    PlatformStatisticsDTO getPlatformStatistics();
+    PlatformStatisticsVO getPlatformStatistics();
 
     // ==================== 商家入驻申请管理 ====================
 
@@ -68,7 +79,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 申请列表
      */
-    Page<MerchantApplicationDTO> getPendingApplications(int pageNum, int pageSize);
+    Page<MerchantApplicationVO> getPendingApplications(int pageNum, int pageSize);
 
     /**
      * 获取所有商家申请列表
@@ -77,7 +88,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 申请列表
      */
-    Page<MerchantApplicationDTO> getAllApplications(int pageNum, int pageSize);
+    Page<MerchantApplicationVO> getAllApplications(int pageNum, int pageSize);
 
     /**
      * 审核商家入驻申请
@@ -96,7 +107,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 商家列表
      */
-    Page<MerchantDTO> getAllMerchants(int pageNum, int pageSize);
+    Page<MerchantVO> getAllMerchants(int pageNum, int pageSize);
 
     /**
      * 根据状态获取商家列表
@@ -106,7 +117,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 商家列表
      */
-    Page<MerchantDTO> getMerchantsByStatus(Integer status, int pageNum, int pageSize);
+    Page<MerchantVO> getMerchantsByStatus(Integer status, int pageNum, int pageSize);
 
     /**
      * 根据审核状态获取商家列表
@@ -116,7 +127,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 商家列表
      */
-    Page<MerchantApplicationDTO> getMerchantsByAuditStatus(Integer auditStatus, int pageNum, int pageSize);
+    Page<MerchantApplicationVO> getMerchantsByAuditStatus(Integer auditStatus, int pageNum, int pageSize);
 
     /**
      * 获取商家详情
@@ -124,7 +135,7 @@ public interface AdminService {
      * @param merchantId 商家ID
      * @return 商家详情
      */
-    MerchantDTO getMerchantDetail(Long merchantId);
+    MerchantVO getMerchantDetail(Long merchantId);
 
     /**
      * 更新商家状态
@@ -150,7 +161,7 @@ public interface AdminService {
      *
      * @return 商家分组列表
      */
-    List<MerchantGroupDTO> getMerchantsGroupedByCategory();
+    List<MerchantGroupVO> getMerchantsGroupedByCategory();
 
     /**
      * 获取指定类目的商家列表
@@ -160,7 +171,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 商家列表
      */
-    Page<MerchantDTO> getMerchantsByCategory(String category, int pageNum, int pageSize);
+    Page<MerchantVO> getMerchantsByCategory(String category, int pageNum, int pageSize);
 
     // ==================== 用户管理 ====================
 
@@ -171,7 +182,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 用户分页列表
      */
-    Page<UserDTO> getUserList(int pageNum, int pageSize);
+    Page<UserVO> getUserList(int pageNum, int pageSize);
 
     /**
      * 根据状态获取用户列表
@@ -181,7 +192,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 用户分页列表
      */
-    Page<UserDTO> getUsersByStatus(Integer status, int pageNum, int pageSize);
+    Page<UserVO> getUsersByStatus(Integer status, int pageNum, int pageSize);
 
     /**
      * 获取用户详情
@@ -189,7 +200,7 @@ public interface AdminService {
      * @param userId 用户ID
      * @return 用户详情
      */
-    UserDTO getUserDetail(String userId);
+    UserVO getUserDetail(String userId);
 
     /**
      * 更新用户状态
@@ -218,7 +229,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 订单分页列表
      */
-    Page<OrderDTO> getOrderList(Integer status, int pageNum, int pageSize);
+    Page<OrderVO> getOrderList(Integer status, int pageNum, int pageSize);
 
     /**
      * 获取订单详情
@@ -226,7 +237,7 @@ public interface AdminService {
      * @param orderId 订单ID
      * @return 订单详情
      */
-    OrderDTO getOrderDetail(Long orderId);
+    OrderVO getOrderDetail(Long orderId);
 
     /**
      * 取消订单
@@ -332,7 +343,7 @@ public interface AdminService {
      * @param pageSize 每页大小
      * @return 提现申请分页列表
      */
-    Page<WithdrawRecordDTO> getWithdrawRecords(Integer status, int pageNum, int pageSize);
+    Page<WithdrawRecordVO> getWithdrawRecords(Integer status, int pageNum, int pageSize);
 
     /**
      * 审核提现申请
@@ -349,7 +360,7 @@ public interface AdminService {
      *
      * @return 财务统计数据
      */
-    FinanceStatistics getFinanceStatistics();
+    FinanceStatisticsVO getFinanceStatistics();
 
     // ==================== 营销管理（轮播图、公告）====================
 
@@ -358,7 +369,7 @@ public interface AdminService {
      *
      * @return 轮播图列表
      */
-    List<BannerDTO> getBanners();
+    List<BannerVO> getBanners();
 
     /**
      * 创建轮播图
@@ -366,7 +377,7 @@ public interface AdminService {
      * @param dto 轮播图信息
      * @return 轮播图ID
      */
-    Long createBanner(BannerDTO dto);
+    Long createBanner(BannerVO dto);
 
     /**
      * 更新轮播图
@@ -374,7 +385,7 @@ public interface AdminService {
      * @param bannerId 轮播图ID
      * @param dto 轮播图信息
      */
-    void updateBanner(Long bannerId, BannerDTO dto);
+    void updateBanner(Long bannerId, BannerVO dto);
 
     /**
      * 删除轮播图
@@ -397,7 +408,7 @@ public interface AdminService {
      * @param type 公告类型（可选）
      * @return 公告列表
      */
-    List<AnnouncementDTO> getAnnouncements(Integer type);
+    List<AnnouncementVO> getAnnouncements(Integer type);
 
     /**
      * 创建公告
@@ -405,7 +416,7 @@ public interface AdminService {
      * @param dto 公告信息
      * @return 公告ID
      */
-    Long createAnnouncement(AnnouncementDTO dto);
+    Long createAnnouncement(AnnouncementVO dto);
 
     /**
      * 更新公告
@@ -413,7 +424,7 @@ public interface AdminService {
      * @param announcementId 公告ID
      * @param dto 公告信息
      */
-    void updateAnnouncement(Long announcementId, AnnouncementDTO dto);
+    void updateAnnouncement(Long announcementId, AnnouncementVO dto);
 
     /**
      * 删除公告
@@ -429,69 +440,4 @@ public interface AdminService {
      * @param status 状态
      */
     void updateAnnouncementStatus(Long announcementId, Integer status);
-
-    /**
-     * 平台统计数据DTO
-     */
-    class PlatformStatisticsDTO {
-        private Long totalUsers;
-        private Long todayUsers;
-        private Long totalMerchants;
-        private Long todayMerchants;
-        private Long totalOrders;
-        private Long todayOrders;
-        private java.math.BigDecimal totalSales;
-        private java.math.BigDecimal todaySales;
-        private Long totalProducts;
-        private Long pendingRefunds;
-        private Long pendingAudits;
-
-        public Long getTotalUsers() { return totalUsers; }
-        public void setTotalUsers(Long totalUsers) { this.totalUsers = totalUsers; }
-        public Long getTodayUsers() { return todayUsers; }
-        public void setTodayUsers(Long todayUsers) { this.todayUsers = todayUsers; }
-        public Long getTotalMerchants() { return totalMerchants; }
-        public void setTotalMerchants(Long totalMerchants) { this.totalMerchants = totalMerchants; }
-        public Long getTodayMerchants() { return todayMerchants; }
-        public void setTodayMerchants(Long todayMerchants) { this.todayMerchants = todayMerchants; }
-        public Long getTotalOrders() { return totalOrders; }
-        public void setTotalOrders(Long totalOrders) { this.totalOrders = totalOrders; }
-        public Long getTodayOrders() { return todayOrders; }
-        public void setTodayOrders(Long todayOrders) { this.todayOrders = todayOrders; }
-        public java.math.BigDecimal getTotalSales() { return totalSales; }
-        public void setTotalSales(java.math.BigDecimal totalSales) { this.totalSales = totalSales; }
-        public java.math.BigDecimal getTodaySales() { return todaySales; }
-        public void setTodaySales(java.math.BigDecimal todaySales) { this.todaySales = todaySales; }
-        public Long getTotalProducts() { return totalProducts; }
-        public void setTotalProducts(Long totalProducts) { this.totalProducts = totalProducts; }
-        public Long getPendingRefunds() { return pendingRefunds; }
-        public void setPendingRefunds(Long pendingRefunds) { this.pendingRefunds = pendingRefunds; }
-        public Long getPendingAudits() { return pendingAudits; }
-        public void setPendingAudits(Long pendingAudits) { this.pendingAudits = pendingAudits; }
-    }
-
-    /**
-     * 财务统计数据DTO
-     */
-    class FinanceStatistics {
-        private java.math.BigDecimal totalBalance;
-        private java.math.BigDecimal totalWithdraw;
-        private java.math.BigDecimal pendingWithdraw;
-        private java.math.BigDecimal completedWithdraw;
-        private Long totalWithdrawCount;
-        private Long pendingWithdrawCount;
-
-        public java.math.BigDecimal getTotalBalance() { return totalBalance; }
-        public void setTotalBalance(java.math.BigDecimal totalBalance) { this.totalBalance = totalBalance; }
-        public java.math.BigDecimal getTotalWithdraw() { return totalWithdraw; }
-        public void setTotalWithdraw(java.math.BigDecimal totalWithdraw) { this.totalWithdraw = totalWithdraw; }
-        public java.math.BigDecimal getPendingWithdraw() { return pendingWithdraw; }
-        public void setPendingWithdraw(java.math.BigDecimal pendingWithdraw) { this.pendingWithdraw = pendingWithdraw; }
-        public java.math.BigDecimal getCompletedWithdraw() { return completedWithdraw; }
-        public void setCompletedWithdraw(java.math.BigDecimal completedWithdraw) { this.completedWithdraw = completedWithdraw; }
-        public Long getTotalWithdrawCount() { return totalWithdrawCount; }
-        public void setTotalWithdrawCount(Long totalWithdrawCount) { this.totalWithdrawCount = totalWithdrawCount; }
-        public Long getPendingWithdrawCount() { return pendingWithdrawCount; }
-        public void setPendingWithdrawCount(Long pendingWithdrawCount) { this.pendingWithdrawCount = pendingWithdrawCount; }
-    }
 }

@@ -1,7 +1,7 @@
 package org.example.shoppingserver.repository;
 
 
-import org.example.shoppingserver.model.entity.UserCoupon;
+import org.example.shoppingserver.model.entity.coupon.UserCoupon;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -67,7 +67,7 @@ public interface UserCouponRepository extends JpaRepository<UserCoupon, Long>, J
      * 批量更新过期优惠券状态
      */
     @Modifying
-    @Query("UPDATE UserCoupon u SET u.status = 2 WHERE u.status = 0 AND u.expireTime < :now")
+    @Query("UPDATE UserCoupon u SET u.status = 2 WHERE (u.status = 0 OR u.status = 1) AND u.expireTime < :now")
     int updateExpiredStatus(@Param("now") LocalDateTime now);
 
     /**
@@ -88,4 +88,10 @@ public interface UserCouponRepository extends JpaRepository<UserCoupon, Long>, J
      */
     @Query("SELECT COUNT(uc) FROM UserCoupon uc WHERE uc.coupon.merchant.id = :merchantId AND uc.status = :status")
     long countByCouponMerchantIdAndStatus(@Param("merchantId") Long merchantId, @Param("status") Integer status);
+
+    /**
+     * 查询用户可用的优惠券（包括优惠券详情）
+     */
+    @Query("SELECT u FROM UserCoupon u LEFT JOIN FETCH u.coupon WHERE u.user.id = :userId AND u.status = 0 AND u.expireTime > :now")
+    List<UserCoupon> findAvailableCouponsWithDetail(@Param("userId") String userId, @Param("now") LocalDateTime now);
 }

@@ -3,8 +3,11 @@ package org.example.shoppingserver.controller;
 
 import lombok.RequiredArgsConstructor;
 
+
 import org.example.shoppingserver.common.result.ResponseResult;
-import org.example.shoppingserver.model.dto.ReviewDTO;
+import org.example.shoppingserver.model.dto.review.ReviewDTO;
+import org.example.shoppingserver.model.vo.review.ReviewVO;
+import org.example.shoppingserver.model.vo.review.ReviewStatisticsVO;
 import org.example.shoppingserver.service.ReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -25,8 +28,8 @@ public class ReviewController {
  * 获取商品评价列表
  */
  @GetMapping("/product/{productId}")
- public ResponseResult<Page<ReviewDTO>> getProductReviews( @PathVariable Long productId, @RequestParam(required = false) Integer rating, @RequestParam(required = false) Boolean hasImage, @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
- Page<ReviewDTO> page = reviewService.getProductReviews(productId, rating, hasImage, pageNum, pageSize);
+ public ResponseResult<Page<ReviewVO>> getProductReviews(@PathVariable Long productId, @RequestParam(required = false) Integer rating, @RequestParam(required = false) Boolean hasImage, @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
+ Page<ReviewVO> page = reviewService.getProductReviews(productId, rating, hasImage, pageNum, pageSize);
  return ResponseResult.success(page);
  }
 
@@ -34,8 +37,8 @@ public class ReviewController {
  * 获取评价详情
  */
  @GetMapping("/{reviewId}")
- public ResponseResult<ReviewDTO> getReviewDetail( @PathVariable Long reviewId) {
- ReviewDTO review = reviewService.getReviewDetail(reviewId);
+ public ResponseResult<ReviewVO> getReviewDetail( @PathVariable Long reviewId) {
+ ReviewVO review = reviewService.getReviewDetail(reviewId);
  return ResponseResult.success(review);
  }
 
@@ -80,8 +83,8 @@ public class ReviewController {
  * 获取评价统计
  */
  @GetMapping("/statistics/{productId}")
- public ResponseResult<ReviewService.ReviewStatisticsDTO> getReviewStatistics( @PathVariable Long productId) {
- ReviewService.ReviewStatisticsDTO statistics = reviewService.getReviewStatistics(productId);
+ public ResponseResult<ReviewStatisticsVO> getReviewStatistics( @PathVariable Long productId) {
+ ReviewStatisticsVO statistics = reviewService.getReviewStatistics(productId);
  return ResponseResult.success(statistics);
  }
 }

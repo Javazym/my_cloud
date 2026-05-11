@@ -1,8 +1,12 @@
 package org.example.shoppingserver.service;
 
-import org.example.shoppingserver.model.dto.UserDTO;
-import org.example.shoppingserver.model.dto.UserAddressDTO;
+
+import org.example.shoppingserver.model.dto.user.UserAddressDTO;
+import org.example.shoppingserver.model.dto.user.UserDTO;
+
+import org.example.shoppingserver.model.vo.user.UserAddressVO;
 import org.springframework.stereotype.Service;
+import org.example.shoppingserver.model.vo.user.UserVO;
 
 /**
  * 用户Service接口
@@ -14,7 +18,7 @@ public interface UserService {
      *
      * @return 用户信息
      */
-    UserDTO getCurrentUser();
+    UserVO getCurrentUser();
 
     /**
      * 根据ID查询用户
@@ -22,7 +26,7 @@ public interface UserService {
      * @param userId 用户ID
      * @return 用户信息
      */
-    UserDTO getUserById(String userId);
+    UserVO getUserById(String userId);
 
     /**
      * 更新用户信息
@@ -31,7 +35,7 @@ public interface UserService {
      * @param userDTO 用户DTO
      * @return 用户信息
      */
-    UserDTO updateUser(String userId, UserDTO userDTO);
+    UserVO updateUser(String userId, UserDTO userDTO);
 
 
     /**
@@ -40,7 +44,7 @@ public interface UserService {
      * @param userId 用户ID
      * @return 收货地址列表
      */
-    java.util.List<UserAddressDTO> getAddresses(String userId);
+    java.util.List<UserAddressVO> getAddresses(String userId);
 
     /**
      * 获取收货地址详情
@@ -48,7 +52,7 @@ public interface UserService {
      * @param addressId 地址ID
      * @return 收货地址
      */
-    UserAddressDTO getAddressById(Long addressId);
+    UserAddressVO getAddressById(Long addressId);
 
     /**
      * 添加收货地址
@@ -57,7 +61,7 @@ public interface UserService {
      * @param addressDTO 地址DTO
      * @return 地址信息
      */
-    UserAddressDTO addAddress(String userId, UserAddressDTO addressDTO);
+    UserAddressVO addAddress(String userId, UserAddressDTO addressDTO);
 
     /**
      * 更新收货地址
@@ -67,7 +71,7 @@ public interface UserService {
      * @param addressDTO 地址DTO
      * @return 地址信息
      */
-    UserAddressDTO updateAddress(String userId, Long addressId, UserAddressDTO addressDTO);
+    UserAddressVO updateAddress(String userId, Long addressId, UserAddressDTO addressDTO);
 
     /**
      * 删除收货地址

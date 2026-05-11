@@ -1,11 +1,14 @@
 package org.example.shoppingserver.util;
 
-import org.example.shoppingserver.model.entity.*;
-import org.example.shoppingserver.model.vo.ProductDetailVO;
-import org.example.shoppingserver.model.vo.ProductSkuVO;
-import org.example.shoppingserver.model.vo.ProductSpecVO;
-import org.example.shoppingserver.model.vo.ProductSpecValueVO;
-import org.example.shoppingserver.model.vo.ProductVO;
+import org.example.shoppingserver.model.entity.product.Product;
+import org.example.shoppingserver.model.entity.product.ProductSku;
+import org.example.shoppingserver.model.entity.product.ProductSpec;
+import org.example.shoppingserver.model.entity.product.ProductSpecValue;
+import org.example.shoppingserver.model.vo.product.ProductDetailVO;
+import org.example.shoppingserver.model.vo.product.ProductSkuVO;
+import org.example.shoppingserver.model.vo.product.ProductSpecVO;
+import org.example.shoppingserver.model.vo.product.ProductSpecValueVO;
+import org.example.shoppingserver.model.vo.product.ProductVO;
 import org.springframework.beans.BeanUtils;
 
 import java.util.Arrays;

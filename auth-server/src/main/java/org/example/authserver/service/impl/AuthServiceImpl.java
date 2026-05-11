@@ -2,14 +2,14 @@ package org.example.authserver.service.impl;
 
 import lombok.SneakyThrows;
 import org.example.authserver.common.MessageWrapper;
-import org.example.authserver.dto.create.AdminCreateDto;
-import org.example.authserver.dto.create.RegisterDto;
-import org.example.authserver.dto.query.AuthCodeDto;
-import org.example.authserver.dto.query.LoginDto;
-import org.example.authserver.dto.query.UserQueryDto;
-import org.example.authserver.dto.update.UserUpdateDto;
-import org.example.authserver.entity.Role;
-import org.example.authserver.entity.SysUser;
+import org.example.authserver.model.dto.create.AdminCreateDto;
+import org.example.authserver.model.dto.create.RegisterDto;
+import org.example.authserver.model.dto.query.AuthCodeDto;
+import org.example.authserver.model.dto.query.LoginDto;
+import org.example.authserver.model.dto.query.UserQueryDto;
+import org.example.authserver.model.dto.update.UserUpdateDto;
+import org.example.authserver.model.entity.Role;
+import org.example.authserver.model.entity.SysUser;
 import org.example.authserver.mq.AuthProducer;
 import org.example.authserver.repository.AuthRepository;
 import org.example.authserver.repository.RoleRepository;
@@ -18,10 +18,9 @@ import org.example.authserver.service.EmailService;
 import org.example.authserver.util.JwtGenerator;
 import org.example.authserver.util.PasswordEncoderUtil;
 import org.example.authserver.util.UserConverter;
-import org.example.authserver.vo.UserVO;
+import org.example.authserver.model.vo.UserVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.Message;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,7 +29,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Optional;
 
 @Service

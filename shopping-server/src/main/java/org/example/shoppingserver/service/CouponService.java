@@ -1,9 +1,12 @@
 package org.example.shoppingserver.service;
 
 
-import org.example.shoppingserver.model.entity.Coupon;
+import org.example.shoppingserver.model.dto.coupon.CouponQueryDTO;
+import org.example.shoppingserver.model.vo.coupon.UserCouponVO;
+import org.example.shoppingserver.model.vo.coupon.CouponVO;
+import org.example.shoppingserver.model.dto.coupon.ValidateResultDTO;
+import org.example.shoppingserver.model.vo.coupon.ValidateResultVO;
 import org.springframework.data.domain.Page;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 
@@ -16,9 +19,9 @@ public interface CouponService {
      * 获取优惠券列表
      *
      * @param queryDTO 查询DTO
-     * @return 优惠券分页结果
+     * @return 优惠券列表
      */
-    Page<Coupon> getCoupons(CouponQueryDTO queryDTO);
+    List<CouponVO> getCoupons(CouponQueryDTO queryDTO);
 
     /**
      * 获取可用优惠券列表
@@ -27,7 +30,7 @@ public interface CouponService {
      * @param orderAmount 订单金额
      * @return 可用优惠券列表
      */
-    List<Coupon> getAvailableCoupons(String userId, java.math.BigDecimal orderAmount);
+    List<CouponVO> getAvailableCoupons(String userId, java.math.BigDecimal orderAmount);
 
     /**
      * 获取优惠券详情
@@ -35,7 +38,7 @@ public interface CouponService {
      * @param couponId 优惠券ID
      * @return 优惠券详情
      */
-    Coupon getCouponDetail(Long couponId);
+    CouponVO getCouponDetail(Long couponId);
 
     /**
      * 领取优惠券
@@ -55,7 +58,7 @@ public interface CouponService {
      * @param pageSize 每页数量
      * @return 用户优惠券分页结果
      */
-    Page<UserCouponDTO> getUserCoupons(String userId, Integer status, int pageNum, int pageSize);
+    Page<UserCouponVO> getUserCoupons(String userId, Integer status, int pageNum, int pageSize);
 
     /**
      * 验证优惠券
@@ -65,7 +68,7 @@ public interface CouponService {
      * @param orderAmount 订单金额
      * @return 验证结果
      */
-    ValidateResultDTO validateCoupon(String userId, Long couponId, java.math.BigDecimal orderAmount);
+    ValidateResultVO validateCoupon(String userId, Long couponId, java.math.BigDecimal orderAmount);
 
     /**
      * 使用优惠券
@@ -78,71 +81,31 @@ public interface CouponService {
     boolean useCoupon(String userId, Long couponId, Long orderId);
 
     /**
-     * 优惠券查询DTO
+     * 清理过期优惠券
+     * 将已过期的未使用优惠券状态更新为已过期
+     *
+     * @return 更新的优惠券数量
      */
-    class CouponQueryDTO {
-        private Long merchantId;
-        private Integer status;
-        private Integer pageNum = 1;
-        private Integer pageSize = 10;
-
-        public Long getMerchantId() { return merchantId; }
-        public void setMerchantId(Long merchantId) { this.merchantId = merchantId; }
-        public Integer getStatus() { return status; }
-        public void setStatus(Integer status) { this.status = status; }
-        public Integer getPageNum() { return pageNum; }
-        public void setPageNum(Integer pageNum) { this.pageNum = pageNum; }
-        public Integer getPageSize() { return pageSize; }
-        public void setPageSize(Integer pageSize) { this.pageSize = pageSize; }
-    }
+    int cleanExpiredCoupons();
 
     /**
-     * 用户优惠券DTO
+     * 获取指定商品的可用优惠券列表
+     *
+     * @param productId 商品ID
+     * @param merchantId 商家ID
+     * @return 可用优惠券列表
      */
-    class UserCouponDTO {
-        private Long id;
-        private Long couponId;
-        private String couponName;
-        private Integer couponType;
-        private java.math.BigDecimal value;
-        private java.math.BigDecimal minAmount;
-        private java.math.BigDecimal maxDiscount;
-        private Integer status;
-        private java.time.LocalDateTime expireTime;
-
-        public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
-        public Long getCouponId() { return couponId; }
-        public void setCouponId(Long couponId) { this.couponId = couponId; }
-        public String getCouponName() { return couponName; }
-        public void setCouponName(String couponName) { this.couponName = couponName; }
-        public Integer getCouponType() { return couponType; }
-        public void setCouponType(Integer couponType) { this.couponType = couponType; }
-        public java.math.BigDecimal getValue() { return value; }
-        public void setValue(java.math.BigDecimal value) { this.value = value; }
-        public java.math.BigDecimal getMinAmount() { return minAmount; }
-        public void setMinAmount(java.math.BigDecimal minAmount) { this.minAmount = minAmount; }
-        public java.math.BigDecimal getMaxDiscount() { return maxDiscount; }
-        public void setMaxDiscount(java.math.BigDecimal maxDiscount) { this.maxDiscount = maxDiscount; }
-        public Integer getStatus() { return status; }
-        public void setStatus(Integer status) { this.status = status; }
-        public java.time.LocalDateTime getExpireTime() { return expireTime; }
-        public void setExpireTime(java.time.LocalDateTime expireTime) { this.expireTime = expireTime; }
-    }
+    List<CouponVO> getAvailableCouponsForProduct(Long productId, Long merchantId);
 
     /**
-     * 验证结果DTO
+     * 获取用户可用于指定商品的优惠券列表
+     * 从用户已领取的未使用优惠券中筛选出适用于该商品的优惠券
+     *
+     * @param userId 用户ID
+     * @param productId 商品ID
+     * @param merchantId 商家ID
+     * @return 可用用户优惠券列表
      */
-    class ValidateResultDTO {
-        private boolean valid;
-        private String message;
-        private java.math.BigDecimal discountAmount;
+    List<UserCouponVO> getUserAvailableCouponsForProduct(String userId, Long productId, Long merchantId);
 
-        public boolean isValid() { return valid; }
-        public void setValid(boolean valid) { this.valid = valid; }
-        public String getMessage() { return message; }
-        public void setMessage(String message) { this.message = message; }
-        public java.math.BigDecimal getDiscountAmount() { return discountAmount; }
-        public void setDiscountAmount(java.math.BigDecimal discountAmount) { this.discountAmount = discountAmount; }
-    }
 }

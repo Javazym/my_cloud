@@ -1,6 +1,8 @@
 package org.example.shoppingserver.service.impl;
 
-import org.example.shoppingserver.model.dto.ReviewDTO;
+import org.example.shoppingserver.model.dto.review.ReviewDTO;
+import org.example.shoppingserver.model.vo.review.ReviewVO;
+import org.example.shoppingserver.model.vo.review.ReviewStatisticsVO;
 import org.example.shoppingserver.service.ReviewService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -10,13 +12,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class ReviewServiceImpl implements ReviewService {
     @Override
-    public Page<ReviewDTO> getProductReviews(Long productId, Integer rating, Boolean hasImage, int pageNum, int pageSize) {
+    public Page<ReviewVO> getProductReviews(Long productId, Integer rating, Boolean hasImage, int pageNum, int pageSize) {
         return null;
     }
 
     @Override
     @Cacheable(value = "reviewDetail", key = "#reviewId", unless = "#result == null")
-    public ReviewDTO getReviewDetail(Long reviewId) {
+    public ReviewVO getReviewDetail(Long reviewId) {
         return null;
     }
 
@@ -46,7 +48,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Cacheable(value = "reviewStatistics", key = "#productId", unless = "#result == null")
-    public ReviewStatisticsDTO getReviewStatistics(Long productId) {
+    public ReviewStatisticsVO getReviewStatistics(Long productId) {
         return null;
     }
 }

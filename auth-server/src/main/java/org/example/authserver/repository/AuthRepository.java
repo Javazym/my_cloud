@@ -1,6 +1,6 @@
 package org.example.authserver.repository;
 
-import org.example.authserver.entity.SysUser;
+import org.example.authserver.model.entity.SysUser;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,14 +1,13 @@
 package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.example.shoppingserver.model.dto.AnnouncementDTO;
-import org.example.shoppingserver.model.dto.BannerDTO;
-import org.example.shoppingserver.model.entity.Announcement;
-import org.example.shoppingserver.model.entity.Banner;
+import org.example.shoppingserver.model.vo.marketing.AnnouncementVO;
+import org.example.shoppingserver.model.vo.marketing.BannerVO;
+import org.example.shoppingserver.model.entity.marketing.Announcement;
+import org.example.shoppingserver.model.entity.marketing.Banner;
 import org.example.shoppingserver.repository.AnnouncementRepository;
 import org.example.shoppingserver.repository.BannerRepository;
 import org.example.shoppingserver.service.MarketingService;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,19 +26,19 @@ public class MarketingServiceImpl implements MarketingService {
     // ====================== 1. 获取轮播图 ======================
     @Override
     @Cacheable(value = "banners", key = "#position != null ? #position : 'all'", unless = "#result == null || #result.isEmpty()")
-    public List<BannerDTO> getBanners(Integer position) {
+    public List<BannerVO> getBanners(Integer position) {
         LocalDateTime now = LocalDateTime.now();
         List<Banner> banners = bannerRepository.findActiveBanners(position, now);
 
         return banners.stream()
-                .map(this::convertBannerDTO)
+                .map(this::convertBannerVO)
                 .collect(Collectors.toList());
     }
 
     // ====================== 2. 获取公告列表 ======================
     @Override
     @Cacheable(value = "announcements", key = "#type != null ? #type + ':' + #limit : 'all:' + #limit", unless = "#result == null || #result.isEmpty()")
-    public List<AnnouncementDTO> getAnnouncements(Integer type, int limit) {
+    public List<AnnouncementVO> getAnnouncements(Integer type, int limit) {
         List<Announcement> list;
 
         if (type != null) {
@@ -54,17 +53,17 @@ public class MarketingServiceImpl implements MarketingService {
         }
 
         return list.stream()
-                .map(this::convertAnnouncementDTO)
+                .map(this::convertAnnouncementVO)
                 .collect(Collectors.toList());
     }
 
     // ====================== 3. 公告详情 ======================
     @Override
     @Cacheable(value = "announcement", key = "#announcementId", unless = "#result == null")
-    public AnnouncementDTO getAnnouncementById(Long announcementId) {
+    public AnnouncementVO getAnnouncementById(Long announcementId) {
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new RuntimeException("公告不存在"));
-        return convertAnnouncementDTO(announcement);
+        return convertAnnouncementVO(announcement);
     }
 
     // ====================== 4. 轮播图点击 +1 ======================
@@ -78,30 +77,30 @@ public class MarketingServiceImpl implements MarketingService {
         return true;
     }
 
-    // ====================== 工具：Banner → DTO ======================
-    private BannerDTO convertBannerDTO(Banner banner) {
-        BannerDTO dto = new BannerDTO();
-        dto.setId(banner.getId());
-        dto.setTitle(banner.getTitle());
-        dto.setImage(banner.getImage());
-        dto.setLink(banner.getLink());
-        dto.setLinkType(banner.getLinkType());
-        dto.setPosition(banner.getPosition());
-        dto.setSort(banner.getSort());
-        dto.setStartTime(banner.getStartTime());
-        dto.setEndTime(banner.getEndTime());
-        return dto;
+    // ====================== 工具：Banner → VO ======================
+    private BannerVO convertBannerVO(Banner banner) {
+        BannerVO vo = new BannerVO();
+        vo.setId(banner.getId());
+        vo.setTitle(banner.getTitle());
+        vo.setImage(banner.getImage());
+        vo.setLink(banner.getLink());
+        vo.setLinkType(banner.getLinkType());
+        vo.setPosition(banner.getPosition());
+        vo.setSort(banner.getSort());
+        vo.setStartTime(banner.getStartTime());
+        vo.setEndTime(banner.getEndTime());
+        return vo;
     }
 
-    // ====================== 工具：Announcement → DTO ======================
-    private AnnouncementDTO convertAnnouncementDTO(Announcement announcement) {
-        AnnouncementDTO dto = new AnnouncementDTO();
-        dto.setId(announcement.getId());
-        dto.setTitle(announcement.getTitle());
-        dto.setContent(announcement.getContent());
-        dto.setType(announcement.getType());
-        dto.setStatus(announcement.getStatus());
-        dto.setCreatedAt(announcement.getCreatedAt());
-        return dto;
+    // ====================== 工具：Announcement → VO ======================
+    private AnnouncementVO convertAnnouncementVO(Announcement announcement) {
+        AnnouncementVO vo = new AnnouncementVO();
+        vo.setId(announcement.getId());
+        vo.setTitle(announcement.getTitle());
+        vo.setContent(announcement.getContent());
+        vo.setType(announcement.getType());
+        vo.setStatus(announcement.getStatus());
+        vo.setCreatedAt(announcement.getCreatedAt());
+        return vo;
     }
 }

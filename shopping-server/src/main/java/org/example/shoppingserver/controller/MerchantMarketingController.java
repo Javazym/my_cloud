@@ -1,9 +1,19 @@
 package org.example.shoppingserver.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.common.result.ResponseResult;
-import org.example.shoppingserver.model.entity.DiscountActivity;
-import org.example.shoppingserver.model.entity.SeckillActivity;
+import org.example.shoppingserver.model.dto.coupon.CouponCreateDTO;
+import org.example.shoppingserver.model.vo.coupon.CouponStatisticsVO;
+import org.example.shoppingserver.model.dto.coupon.CouponUpdateDTO;
+import org.example.shoppingserver.model.dto.coupon.MerchantCouponQueryDTO;
+import org.example.shoppingserver.model.dto.marketing.DiscountActivityDTO;
+import org.example.shoppingserver.model.dto.marketing.DiscountActivityQueryDTO;
+import org.example.shoppingserver.model.dto.marketing.SeckillActivityDTO;
+import org.example.shoppingserver.model.dto.marketing.SeckillActivityQueryDTO;
+import org.example.shoppingserver.model.vo.marketing.DiscountActivityVO;
+import org.example.shoppingserver.model.vo.marketing.SeckillActivityVO;
+import org.example.shoppingserver.model.vo.coupon.CouponVO;
 import org.example.shoppingserver.service.MerchantMarketingService;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -26,32 +36,28 @@ public class MerchantMarketingController {
     /**
      * 创建秒杀活动
      *
-     * @param merchantId 商家ID
      * @param dto 秒杀活动信息
      * @return 活动ID
      */
     @PostMapping("/seckill")
     public ResponseResult<Long> createSeckillActivity(
-            @RequestParam Long merchantId,
-            @RequestBody MerchantMarketingService.SeckillActivityDTO dto) {
-        Long activityId = merchantMarketingService.createSeckillActivity(merchantId, dto);
+            @RequestBody SeckillActivityDTO dto) {
+        Long activityId = merchantMarketingService.createSeckillActivity(dto.getMerchantId(), dto);
         return ResponseResult.success(activityId);
     }
 
     /**
      * 更新秒杀活动
      *
-     * @param merchantId 商家ID
      * @param activityId 活动ID
      * @param dto 秒杀活动信息
      * @return 操作结果
      */
     @PutMapping("/seckill/{activityId}")
     public ResponseResult<Void> updateSeckillActivity(
-            @RequestParam Long merchantId,
             @PathVariable Long activityId,
-            @RequestBody MerchantMarketingService.SeckillActivityDTO dto) {
-        merchantMarketingService.updateSeckillActivity(merchantId, activityId, dto);
+            @RequestBody SeckillActivityDTO dto) {
+        merchantMarketingService.updateSeckillActivity(dto.getMerchantId(), activityId, dto);
         return ResponseResult.success();
     }
 
@@ -74,18 +80,18 @@ public class MerchantMarketingController {
      * 获取秒杀活动列表
      *
      * @param merchantId 商家ID
-     * @param status 活动状态（0-未开始，1-进行中，2-已结束，3-已取消）
-     * @param pageNum 页码，默认1
-     * @param pageSize 每页数量，默认10
+     * @param queryDTO 查询条件
      * @return 秒杀活动分页列表
      */
     @GetMapping("/seckill")
-    public ResponseResult<Page<SeckillActivity>> getSeckillActivities(
+    public ResponseResult<Page<SeckillActivityVO>> getSeckillActivities(
             @RequestParam Long merchantId,
-            @RequestParam(required = false) Integer status,
-            @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<SeckillActivity> page = merchantMarketingService.getSeckillActivities(merchantId, status, pageNum, pageSize);
+            @ModelAttribute SeckillActivityQueryDTO queryDTO) {
+        Page<SeckillActivityVO> page = merchantMarketingService.getSeckillActivities(
+                merchantId, 
+                queryDTO.getStatus(), 
+                queryDTO.getPageNum(), 
+                queryDTO.getPageSize());
         return ResponseResult.success(page);
     }
 
@@ -97,10 +103,10 @@ public class MerchantMarketingController {
      * @return 秒杀活动详情
      */
     @GetMapping("/seckill/{activityId}")
-    public ResponseResult<SeckillActivity> getSeckillActivityDetail(
+    public ResponseResult<SeckillActivityVO> getSeckillActivityDetail(
             @RequestParam Long merchantId,
             @PathVariable Long activityId) {
-        SeckillActivity activity = merchantMarketingService.getSeckillActivityDetail(merchantId, activityId);
+        SeckillActivityVO activity = merchantMarketingService.getSeckillActivityDetail(merchantId, activityId);
         return ResponseResult.success(activity);
     }
 
@@ -126,32 +132,26 @@ public class MerchantMarketingController {
     /**
      * 创建满减活动
      *
-     * @param merchantId 商家ID
      * @param dto 满减活动信息
      * @return 活动ID
      */
     @PostMapping("/discount")
     public ResponseResult<Long> createDiscountActivity(
-            @RequestParam Long merchantId,
-            @RequestBody MerchantMarketingService.DiscountActivityDTO dto) {
-        Long activityId = merchantMarketingService.createDiscountActivity(merchantId, dto);
+            @RequestBody DiscountActivityDTO dto) {
+        Long activityId = merchantMarketingService.createDiscountActivity(dto.getMerchantId(), dto);
         return ResponseResult.success(activityId);
     }
 
     /**
      * 更新满减活动
      *
-     * @param merchantId 商家ID
-     * @param activityId 活动ID
      * @param dto 满减活动信息
      * @return 操作结果
      */
-    @PutMapping("/discount/{activityId}")
+    @PutMapping("/discount")
     public ResponseResult<Void> updateDiscountActivity(
-            @RequestParam Long merchantId,
-            @PathVariable Long activityId,
-            @RequestBody MerchantMarketingService.DiscountActivityDTO dto) {
-        merchantMarketingService.updateDiscountActivity(merchantId, activityId, dto);
+            @RequestBody DiscountActivityDTO dto) {
+        merchantMarketingService.updateDiscountActivity(dto.getMerchantId(), dto.getActivityId(), dto);
         return ResponseResult.success();
     }
 
@@ -173,19 +173,17 @@ public class MerchantMarketingController {
     /**
      * 获取满减活动列表
      *
-     * @param merchantId 商家ID
-     * @param status 活动状态（0-未开始，1-进行中，2-已结束，3-已取消）
-     * @param pageNum 页码，默认1
-     * @param pageSize 每页数量，默认10
+     * @param queryDTO 查询条件
      * @return 满减活动分页列表
      */
     @GetMapping("/discount")
-    public ResponseResult<Page<DiscountActivity>> getDiscountActivities(
-            @RequestParam Long merchantId,
-            @RequestParam(required = false) Integer status,
-            @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<DiscountActivity> page = merchantMarketingService.getDiscountActivities(merchantId, status, pageNum, pageSize);
+    public ResponseResult<Page<DiscountActivityVO>> getDiscountActivities(
+            @ModelAttribute DiscountActivityQueryDTO queryDTO) {
+        Page<DiscountActivityVO> page = merchantMarketingService.getDiscountActivities(
+                queryDTO.getMerchantId(),
+                queryDTO.getStatus(), 
+                queryDTO.getPageNum(), 
+                queryDTO.getPageSize());
         return ResponseResult.success(page);
     }
 
@@ -197,10 +195,10 @@ public class MerchantMarketingController {
      * @return 满减活动详情
      */
     @GetMapping("/discount/{activityId}")
-    public ResponseResult<DiscountActivity> getDiscountActivityDetail(
+    public ResponseResult<DiscountActivityVO> getDiscountActivityDetail(
             @RequestParam Long merchantId,
             @PathVariable Long activityId) {
-        DiscountActivity activity = merchantMarketingService.getDiscountActivityDetail(merchantId, activityId);
+        DiscountActivityVO activity = merchantMarketingService.getDiscountActivityDetail(merchantId, activityId);
         return ResponseResult.success(activity);
     }
 
@@ -226,32 +224,28 @@ public class MerchantMarketingController {
     /**
      * 创建优惠券
      *
-     * @param merchantId 商家ID
      * @param dto 优惠券创建信息
      * @return 优惠券ID
      */
     @PostMapping("/coupon")
     public ResponseResult<Long> createCoupon(
-            @RequestParam Long merchantId,
-            @RequestBody MerchantMarketingService.CouponCreateDTO dto) {
-        Long couponId = merchantMarketingService.createCoupon(merchantId, dto);
+            @RequestBody CouponCreateDTO dto) {
+        Long couponId = merchantMarketingService.createCoupon(UserHolder.getCurrentUserId(), dto);
         return ResponseResult.success(couponId);
     }
 
     /**
      * 更新优惠券
      *
-     * @param merchantId 商家ID
      * @param couponId 优惠券ID
      * @param dto 优惠券更新信息
      * @return 操作结果
      */
     @PutMapping("/coupon/{couponId}")
     public ResponseResult<Void> updateCoupon(
-            @RequestParam Long merchantId,
             @PathVariable Long couponId,
-            @RequestBody MerchantMarketingService.CouponUpdateDTO dto) {
-        merchantMarketingService.updateCoupon(merchantId, couponId, dto);
+            @RequestBody CouponUpdateDTO dto) {
+        merchantMarketingService.updateCoupon(dto.getMerchantId(), couponId, dto);
         return ResponseResult.success();
     }
 
@@ -273,20 +267,17 @@ public class MerchantMarketingController {
     /**
      * 获取商家优惠券列表
      *
-     * @param merchantId 商家ID
-     * @param status 优惠券状态（1-可用，2-已停用）
-     * @param pageNum 页码，默认1
-     * @param pageSize 每页数量，默认10
+     * @param queryDTO 查询条件
      * @return 优惠券分页列表
      */
     @GetMapping("/coupon")
-    public ResponseResult<Page<org.example.shoppingserver.model.entity.Coupon>> getMerchantCoupons(
-            @RequestParam Long merchantId,
-            @RequestParam(required = false) Integer status,
-            @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        Page<org.example.shoppingserver.model.entity.Coupon> page = 
-                merchantMarketingService.getMerchantCoupons(merchantId, status, pageNum, pageSize);
+    public ResponseResult<Page<CouponVO>> getMerchantCoupons(
+            @ModelAttribute MerchantCouponQueryDTO queryDTO) {
+        Page<CouponVO> page = merchantMarketingService.getMerchantCoupons(
+                queryDTO.getMerchantId(),
+                queryDTO.getStatus(), 
+                queryDTO.getPageNum(), 
+                queryDTO.getPageSize());
         return ResponseResult.success(page);
     }
 
@@ -297,10 +288,9 @@ public class MerchantMarketingController {
      * @return 优惠券统计数据（总数、激活数、领取数、使用数）
      */
     @GetMapping("/coupon/statistics")
-    public ResponseResult<MerchantMarketingService.CouponStatistics> getCouponStatistics(
+    public ResponseResult<CouponStatisticsVO> getCouponStatistics(
             @RequestParam Long merchantId) {
-        MerchantMarketingService.CouponStatistics statistics = 
-                merchantMarketingService.getCouponStatistics(merchantId);
+        CouponStatisticsVO statistics = merchantMarketingService.getCouponStatistics(merchantId);
         return ResponseResult.success(statistics);
     }
 }

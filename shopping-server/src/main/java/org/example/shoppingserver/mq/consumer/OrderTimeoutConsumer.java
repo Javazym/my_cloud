@@ -5,9 +5,13 @@ import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.shoppingserver.common.MessageWrapper;
-import org.example.shoppingserver.model.entity.Order;
-import org.example.shoppingserver.model.entity.OrderStatus;
+import org.example.shoppingserver.model.entity.order.Order;
+import org.example.shoppingserver.model.entity.order.OrderItem;
+import org.example.shoppingserver.model.entity.order.OrderStatus;
+import org.example.shoppingserver.model.entity.coupon.UserCoupon;
 import org.example.shoppingserver.repository.OrderRepository;
+import org.example.shoppingserver.repository.ProductSkuRepository;
+import org.example.shoppingserver.repository.UserCouponRepository;
 import org.example.shoppingserver.util.config.RabbitConfig;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -27,6 +31,8 @@ public class OrderTimeoutConsumer {
 
     private final ObjectMapper objectMapper;
     private final OrderRepository orderRepository;
+    private final ProductSkuRepository productSkuRepository;
+    private final UserCouponRepository userCouponRepository;
 
     /**
      * 处理订单超时消息（从死信队列消费）
@@ -93,7 +99,7 @@ public class OrderTimeoutConsumer {
                     orderId, order.getStatus());
             return;
         }
-        
+
         // 3. 取消订单
         order.cancel();
         orderRepository.save(order);
@@ -104,5 +110,16 @@ public class OrderTimeoutConsumer {
         // - 释放库存（如果之前预扣减了）
         // - 发送通知给用户
         // - 记录日志
+        UserCoupon userCoupon = userCouponRepository.findByOrderId(orderId).orElse( null);
+        if (userCoupon != null) {
+            userCoupon.setStatus(0);
+            userCoupon.setUseTime(null);
+            userCoupon.setOrder(null);
+            userCouponRepository.save(userCoupon);
+        }
+
+        for(OrderItem item : order.getItems()) {
+            productSkuRepository.addStock(item.getSku().getId(), 1);
+        }
     }
 }

@@ -5,15 +5,18 @@ import cn.hutool.core.util.StrUtil;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.example.shoppingserver.common.UserHolder;
-import org.example.shoppingserver.model.dto.ProductCreateDTO;
-import org.example.shoppingserver.model.dto.ProductQueryDTO;
-import org.example.shoppingserver.model.dto.ProductSkuCreateDTO;
-import org.example.shoppingserver.model.dto.ProductSpecDTO;
-import org.example.shoppingserver.model.dto.ProductSpecValueDTO;
-import org.example.shoppingserver.model.dto.ProductUpdateDTO;
-import org.example.shoppingserver.model.entity.*;
-import org.example.shoppingserver.model.vo.ProductDetailVO;
-import org.example.shoppingserver.model.vo.ProductVO;
+import org.example.shoppingserver.model.dto.product.ProductCreateDTO;
+import org.example.shoppingserver.model.dto.product.ProductQueryDTO;
+import org.example.shoppingserver.model.dto.product.*;
+import org.example.shoppingserver.model.dto.product.ProductUpdateDTO;
+import org.example.shoppingserver.model.entity.common.Category;
+import org.example.shoppingserver.model.entity.merchant.Merchant;
+import org.example.shoppingserver.model.entity.product.Product;
+import org.example.shoppingserver.model.entity.product.ProductSku;
+import org.example.shoppingserver.model.entity.product.ProductSpec;
+import org.example.shoppingserver.model.entity.product.ProductSpecValue;
+import org.example.shoppingserver.model.vo.product.ProductDetailVO;
+import org.example.shoppingserver.model.vo.product.ProductVO;
 import org.example.shoppingserver.repository.CategoryRepository;
 import org.example.shoppingserver.repository.MerchantRepository;
 import org.example.shoppingserver.repository.ProductRepository;
@@ -28,10 +31,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service

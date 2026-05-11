@@ -1,8 +1,8 @@
 package org.example.authserver.util;
 
-import org.example.authserver.entity.Role;
-import org.example.authserver.entity.SysUser;
-import org.example.authserver.vo.UserVO;
+import org.example.authserver.model.entity.Role;
+import org.example.authserver.model.entity.SysUser;
+import org.example.authserver.model.vo.UserVO;
 
 import java.util.stream.Collectors;
 

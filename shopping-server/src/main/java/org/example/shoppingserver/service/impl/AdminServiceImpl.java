@@ -3,10 +3,34 @@ package org.example.shoppingserver.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.shoppingserver.common.UserHolder;
-import org.example.shoppingserver.model.dto.*;
-import org.example.shoppingserver.model.entity.*;
-import org.example.shoppingserver.model.vo.CategoryVO;
-import org.example.shoppingserver.model.vo.ProductVO;
+import org.example.shoppingserver.model.dto.merchant.MerchantAuditDTO;
+import org.example.shoppingserver.model.dto.product.CategoryDTO;
+import org.example.shoppingserver.model.vo.admin.AdminVO;
+import org.example.shoppingserver.model.vo.admin.PlatformStatisticsVO;
+import org.example.shoppingserver.model.vo.finance.FinanceStatisticsVO;
+import org.example.shoppingserver.model.vo.finance.WithdrawRecordVO;
+import org.example.shoppingserver.model.vo.marketing.AnnouncementVO;
+import org.example.shoppingserver.model.vo.marketing.BannerVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantApplicationVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantGroupVO;
+import org.example.shoppingserver.model.vo.merchant.MerchantVO;
+import org.example.shoppingserver.model.vo.order.OrderVO;
+import org.example.shoppingserver.model.vo.user.UserVO;
+import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.entity.admin.Admin;
+import org.example.shoppingserver.model.entity.common.AuditStatus;
+import org.example.shoppingserver.model.entity.common.Category;
+import org.example.shoppingserver.model.entity.finance.WithdrawRecord;
+import org.example.shoppingserver.model.entity.marketing.Announcement;
+import org.example.shoppingserver.model.entity.marketing.Banner;
+import org.example.shoppingserver.model.entity.merchant.Merchant;
+import org.example.shoppingserver.model.entity.merchant.MerchantApplication;
+import org.example.shoppingserver.model.entity.order.Order;
+import org.example.shoppingserver.model.entity.order.OrderStatus;
+import org.example.shoppingserver.model.entity.product.Product;
+import org.example.shoppingserver.model.vo.product.CategoryVO;
+import org.example.shoppingserver.model.vo.product.ProductVO;
+import org.example.shoppingserver.mq.producer.MerchantProducer;
 import org.example.shoppingserver.repository.*;
 import org.example.shoppingserver.service.AdminService;
 import org.springframework.cache.annotation.CacheEvict;
@@ -49,10 +73,11 @@ public class AdminServiceImpl implements AdminService {
     private final UserCouponRepository userCouponRepository;
     private final CouponRepository couponRepository;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final MerchantProducer merchantProducer;
 
 
     @Override
-    public AdminDTO login(String username, String password) {
+    public AdminVO login(String username, String password) {
         // 查询管理员
         Admin admin = adminRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户名或密码错误"));
@@ -66,12 +91,12 @@ public class AdminServiceImpl implements AdminService {
         admin.setLastLoginTime(LocalDateTime.now());
         adminRepository.save(admin);
 
-        return convertToAdminDTO(admin);
+        return convertToAdminVO(admin);
     }
 
     @Override
     @Cacheable(value = "adminInfo", key = "#adminId", unless = "#result == null")
-    public AdminDTO getCurrentAdmin() {
+    public AdminVO getCurrentAdmin() {
         String adminId = UserHolder.getCurrentUserId();
         if (adminId == null) {
             throw new RuntimeException("未登录");
@@ -80,7 +105,7 @@ public class AdminServiceImpl implements AdminService {
         Admin admin = adminRepository.findById(Long.parseLong(adminId))
                 .orElseThrow(() -> new RuntimeException("管理员不存在"));
 
-        return convertToAdminDTO(admin);
+        return convertToAdminVO(admin);
     }
 
     @Override
@@ -129,8 +154,8 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     @Cacheable(value = "platformStatistics", unless = "#result == null")
-    public PlatformStatisticsDTO getPlatformStatistics() {
-        PlatformStatisticsDTO statistics = new PlatformStatisticsDTO();
+    public PlatformStatisticsVO getPlatformStatistics() {
+        PlatformStatisticsVO statistics = new PlatformStatisticsVO();
 
         LocalDateTime todayStart = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
 
@@ -168,18 +193,18 @@ public class AdminServiceImpl implements AdminService {
     // ==================== 商家入驻申请管理 ====================
 
     @Override
-    public Page<MerchantApplicationDTO> getPendingApplications(int pageNum, int pageSize) {
+    public Page<MerchantApplicationVO> getPendingApplications(int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<MerchantApplication> applications = merchantApplicationRepository
                 .findByStatus(AuditStatus.PENDING, pageable);
-        return applications.map(this::convertToApplicationDTO);
+        return applications.map(this::convertToApplicationVO);
     }
 
     @Override
-    public Page<MerchantApplicationDTO> getAllApplications(int pageNum, int pageSize) {
+    public Page<MerchantApplicationVO> getAllApplications(int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<MerchantApplication> applications = merchantApplicationRepository.findAll(pageable);
-        return applications.map(this::convertToApplicationDTO);
+        return applications.map(this::convertToApplicationVO);
     }
 
     @Override
@@ -218,6 +243,7 @@ public class AdminServiceImpl implements AdminService {
                 merchant.initAccount();
                 merchantRepository.save(merchant);
             }
+            merchantProducer.sendMerchantRegisterMessage(application.getUser().getId());
         }
 
         return true;
@@ -226,35 +252,35 @@ public class AdminServiceImpl implements AdminService {
     // ==================== 商家管理 ====================
 
     @Override
-    public Page<MerchantDTO> getAllMerchants(int pageNum, int pageSize) {
+    public Page<MerchantVO> getAllMerchants(int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<Merchant> merchants = merchantRepository.findAll(pageable);
-        return merchants.map(this::convertToMerchantDTO);
+        return merchants.map(this::convertToMerchantVO);
     }
 
     @Override
-    public Page<MerchantDTO> getMerchantsByStatus(Integer status, int pageNum, int pageSize) {
+    public Page<MerchantVO> getMerchantsByStatus(Integer status, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<Merchant> merchants = merchantRepository.findByStatus(status, pageable);
-        return merchants.map(this::convertToMerchantDTO);
+        return merchants.map(this::convertToMerchantVO);
     }
 
     @Override
-    public Page<MerchantApplicationDTO> getMerchantsByAuditStatus(Integer auditStatus, int pageNum, int pageSize) {
+    public Page<MerchantApplicationVO> getMerchantsByAuditStatus(Integer auditStatus, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         AuditStatus status = AuditStatus.fromCode(auditStatus);
         if (status == null) {
             throw new RuntimeException("无效的审核状态");
         }
         Page<MerchantApplication> merchants = merchantApplicationRepository.findByStatus(status, pageable);
-        return merchants.map(this::convertToApplicationDTO);
+        return merchants.map(this::convertToApplicationVO);
     }
 
     @Override
-    public MerchantDTO getMerchantDetail(Long merchantId) {
+    public MerchantVO getMerchantDetail(Long merchantId) {
         Merchant merchant = merchantRepository.findById(merchantId)
                 .orElseThrow(() -> new RuntimeException("商家不存在"));
-        return convertToMerchantDTO(merchant);
+        return convertToMerchantVO(merchant);
     }
 
     @Override
@@ -296,7 +322,7 @@ public class AdminServiceImpl implements AdminService {
     // ==================== 商家分组展示 ====================
 
     @Override
-    public List<MerchantGroupDTO> getMerchantsGroupedByCategory() {
+    public List<MerchantGroupVO> getMerchantsGroupedByCategory() {
         // 获取所有正常状态的商家
         List<Merchant> merchants = merchantRepository.findByStatus(1,
                 PageRequest.of(0, Integer.MAX_VALUE)).getContent();
@@ -306,16 +332,16 @@ public class AdminServiceImpl implements AdminService {
                 .collect(Collectors.groupingBy(
                         m -> m.getCategory().toString() != null ? m.getCategory().toString() : "其他"
                 ));
-        List<MerchantGroupDTO> result = new ArrayList<>();
+        List<MerchantGroupVO> result = new ArrayList<>();
         for (Map.Entry<String, List<Merchant>> entry : groupedByCategory.entrySet()) {
-            MerchantGroupDTO groupDTO = new MerchantGroupDTO();
-            groupDTO.setCategoryName(entry.getKey());
-            groupDTO.setCategoryDescription(getCategoryDescription(entry.getKey()));
-            groupDTO.setMerchantCount((long) entry.getValue().size());
-            groupDTO.setMerchants(entry.getValue().stream()
-                    .map(this::convertToMerchantDTO)
+            MerchantGroupVO groupVO = new MerchantGroupVO();
+            groupVO.setCategoryName(entry.getKey());
+            groupVO.setCategoryDescription(getCategoryDescription(entry.getKey()));
+            groupVO.setMerchantCount((long) entry.getValue().size());
+            groupVO.setMerchants(entry.getValue().stream()
+                    .map(this::convertToMerchantVO)
                     .collect(Collectors.toList()));
-            result.add(groupDTO);
+            result.add(groupVO);
         }
 
         // 按商家数量排序
@@ -325,33 +351,33 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public Page<MerchantDTO> getMerchantsByCategory(String category, int pageNum, int pageSize) {
+    public Page<MerchantVO> getMerchantsByCategory(String category, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<Merchant> merchants = merchantRepository.findByCategory(category, pageable);
-        return merchants.map(this::convertToMerchantDTO);
+        return merchants.map(this::convertToMerchantVO);
     }
 
     // ==================== 用户管理 ====================
 
     @Override
-    public Page<UserDTO> getUserList(int pageNum, int pageSize) {
+    public Page<UserVO> getUserList(int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<User> users = userRepository.findAll(pageable);
-        return users.map(this::convertToUserDTO);
+        return users.map(this::convertToUserVO);
     }
 
     @Override
-    public Page<UserDTO> getUsersByStatus(Integer status, int pageNum, int pageSize) {
+    public Page<UserVO> getUsersByStatus(Integer status, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<User> users = userRepository.findByStatus(status, pageable);
-        return users.map(this::convertToUserDTO);
+        return users.map(this::convertToUserVO);
     }
 
     @Override
-    public UserDTO getUserDetail(String userId) {
+    public UserVO getUserDetail(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
-        return convertToUserDTO(user);
+        return convertToUserVO(user);
     }
 
     @Override
@@ -376,7 +402,7 @@ public class AdminServiceImpl implements AdminService {
     // ==================== 订单管理 ====================
 
     @Override
-    public Page<OrderDTO> getOrderList(Integer status, int pageNum, int pageSize) {
+    public Page<OrderVO> getOrderList(Integer status, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<Order> orders;
         if (status == null) {
@@ -385,14 +411,14 @@ public class AdminServiceImpl implements AdminService {
             OrderStatus orderStatus = OrderStatus.fromCode(status);
             orders = orderRepository.findAllByStatus(orderStatus, pageable);
         }
-        return orders.map(this::convertToOrderDTO);
+        return orders.map(this::convertToOrderVO);
     }
 
     @Override
-    public OrderDTO getOrderDetail(Long orderId) {
+    public OrderVO getOrderDetail(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("订单不存在"));
-        return convertToOrderDTO(order);
+        return convertToOrderVO(order);
     }
 
     @Override
@@ -517,7 +543,7 @@ public class AdminServiceImpl implements AdminService {
     // ==================== 财务管理 ====================
 
     @Override
-    public Page<WithdrawRecordDTO> getWithdrawRecords(Integer status, int pageNum, int pageSize) {
+    public Page<WithdrawRecordVO> getWithdrawRecords(Integer status, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<WithdrawRecord> records;
         if (status == null) {
@@ -525,7 +551,7 @@ public class AdminServiceImpl implements AdminService {
         } else {
             records = withdrawRecordRepository.findByStatus(status, pageable);
         }
-        return records.map(this::convertToWithdrawRecordDTO);
+        return records.map(this::convertToWithdrawRecordVO);
     }
 
     @Override
@@ -544,8 +570,8 @@ public class AdminServiceImpl implements AdminService {
     }
 
     @Override
-    public FinanceStatistics getFinanceStatistics() {
-        FinanceStatistics statistics = new FinanceStatistics();
+    public FinanceStatisticsVO getFinanceStatistics() {
+        FinanceStatisticsVO statistics = new FinanceStatisticsVO();
         
         // 总提现金额（已打款）
         statistics.setTotalWithdraw(
@@ -576,14 +602,14 @@ public class AdminServiceImpl implements AdminService {
     // ==================== 营销管理（轮播图、公告）====================
     
     @Override
-    public List<BannerDTO> getBanners() {
+    public List<BannerVO> getBanners() {
         List<Banner> banners = bannerRepository.findAll();
-        return banners.stream().map(this::convertToBannerDTO).collect(Collectors.toList());
+        return banners.stream().map(this::convertToBannerVO).collect(Collectors.toList());
     }
     
     @Override
     @Transactional
-    public Long createBanner(BannerDTO dto) {
+    public Long createBanner(BannerVO dto) {
         Banner banner = new Banner();
         banner.setTitle(dto.getTitle());
         banner.setImage(dto.getImageUrl() != null ? dto.getImageUrl() : dto.getImage());
@@ -596,7 +622,7 @@ public class AdminServiceImpl implements AdminService {
     
     @Override
     @Transactional
-    public void updateBanner(Long bannerId, BannerDTO dto) {
+    public void updateBanner(Long bannerId, BannerVO dto) {
         Banner banner = bannerRepository.findById(bannerId)
                 .orElseThrow(() -> new RuntimeException("轮播图不存在"));
         banner.setTitle(dto.getTitle());
@@ -626,19 +652,19 @@ public class AdminServiceImpl implements AdminService {
     }
     
     @Override
-    public List<AnnouncementDTO> getAnnouncements(Integer type) {
+    public List<AnnouncementVO> getAnnouncements(Integer type) {
         List<Announcement> announcements;
         if (type == null) {
             announcements = announcementRepository.findAll();
         } else {
             announcements = announcementRepository.findByType(type);
         }
-        return announcements.stream().map(this::convertToAnnouncementDTO).collect(Collectors.toList());
+        return announcements.stream().map(this::convertToAnnouncementVO).collect(Collectors.toList());
     }
     
     @Override
     @Transactional
-    public Long createAnnouncement(AnnouncementDTO dto) {
+    public Long createAnnouncement(AnnouncementVO dto) {
         Announcement announcement = new Announcement();
         announcement.setTitle(dto.getTitle());
         announcement.setContent(dto.getContent());
@@ -650,7 +676,7 @@ public class AdminServiceImpl implements AdminService {
     
     @Override
     @Transactional
-    public void updateAnnouncement(Long announcementId, AnnouncementDTO dto) {
+    public void updateAnnouncement(Long announcementId, AnnouncementVO dto) {
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new RuntimeException("公告不存在"));
         announcement.setTitle(dto.getTitle());
@@ -679,47 +705,47 @@ public class AdminServiceImpl implements AdminService {
 
     // ==================== 转换方法 ====================
 
-    private AdminDTO convertToAdminDTO(Admin admin) {
-        AdminDTO dto = new AdminDTO();
-        dto.setId(admin.getId());
-        dto.setUsername(admin.getUsername());
-        dto.setStatus(admin.getStatus());
-        dto.setLastLoginTime(admin.getLastLoginTime());
-        return dto;
+    private AdminVO convertToAdminVO(Admin admin) {
+        AdminVO vo = new AdminVO();
+        vo.setId(admin.getId());
+        vo.setUsername(admin.getUsername());
+        vo.setStatus(admin.getStatus());
+        vo.setLastLoginTime(admin.getLastLoginTime());
+        return vo;
     }
 
     // TODO: 待启用用户管理功能后使用
 
-    private UserDTO convertToUserDTO(User user) {
-        UserDTO dto = new UserDTO();
-        dto.setId(user.getId());
-        dto.setUsername(user.getUsername());
-        dto.setNickname(user.getNickname());
-        dto.setAvatar(user.getAvatar());
-        dto.setEmail(user.getEmail());
-        dto.setGender(user.getGender());
-        dto.setBirthday(user.getBirthday());
-        dto.setStatus(user.getStatus());
-        dto.setBalance(user.getBalance());
-        dto.setCreatedAt(user.getCreatedAt());
-        return dto;
+    private UserVO convertToUserVO(User user) {
+        UserVO vo = new UserVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setNickname(user.getNickname());
+        vo.setAvatar(user.getAvatar());
+        vo.setEmail(user.getEmail());
+        vo.setGender(user.getGender());
+        vo.setBirthday(user.getBirthday());
+        vo.setStatus(user.getStatus());
+        vo.setBalance(user.getBalance());
+        vo.setCreatedAt(user.getCreatedAt());
+        return vo;
     }
 
-    private OrderDTO convertToOrderDTO(Order order) {
-        OrderDTO dto = new OrderDTO();
-        dto.setId(order.getId());
-        dto.setOrderNo(order.getOrderNo());
-        dto.setUserId(order.getUser().getId());
-        dto.setMerchantId(order.getMerchant().getId());
-        dto.setTotalAmount(order.getTotalAmount());
-        dto.setPayAmount(order.getPayAmount());
-        dto.setStatus(order.getStatus().getCode());
-        dto.setStatusDescription(order.getStatus().getDescription());
-        dto.setPayTime(order.getPayTime());
-        dto.setDeliveryTime(order.getShipTime());
-        dto.setReceiveTime(order.getReceiveTime());
-        dto.setCreatedAt(order.getCreatedAt());
-        return dto;
+    private OrderVO convertToOrderVO(Order order) {
+        OrderVO vo = new OrderVO();
+        vo.setId(order.getId());
+        vo.setOrderNo(order.getOrderNo());
+        vo.setUserId(order.getUser().getId());
+        vo.setMerchantId(order.getMerchant().getId());
+        vo.setTotalAmount(order.getTotalAmount());
+        vo.setPayAmount(order.getPayAmount());
+        vo.setStatus(order.getStatus().getCode());
+        vo.setStatusDescription(order.getStatus().getDescription());
+        vo.setPayTime(order.getPayTime());
+        vo.setShipTime(order.getShipTime());
+        vo.setReceiveTime(order.getReceiveTime());
+        vo.setCreatedAt(order.getCreatedAt());
+        return vo;
     }
 
     private ProductVO convertToProductVO(Product product) {
@@ -761,96 +787,96 @@ public class AdminServiceImpl implements AdminService {
         return vo;
     }
 
-    private WithdrawRecordDTO convertToWithdrawRecordDTO(WithdrawRecord record) {
-        WithdrawRecordDTO dto = new WithdrawRecordDTO();
-        dto.setId(record.getId());
-        dto.setMerchantId(record.getMerchant().getId());
-        dto.setMerchantName(record.getMerchant().getStoreName());
-        dto.setAmount(record.getAmount());
-        dto.setFee(record.getFee());
-        dto.setActualAmount(record.getActualAmount());
-        dto.setAccount(record.getAccountName());
-        dto.setBankName(record.getBankName());
-        dto.setStatus(record.getStatus());
-        dto.setReason(record.getAuditReason());
-        dto.setApplyTime(record.getApplyTime());
-        dto.setAuditTime(record.getAuditTime());
-        dto.setTransferTime(record.getTransferTime());
-        return dto;
+    private WithdrawRecordVO convertToWithdrawRecordVO(WithdrawRecord record) {
+        WithdrawRecordVO vo = new WithdrawRecordVO();
+        vo.setId(record.getId());
+        vo.setMerchantId(record.getMerchant().getId());
+        vo.setMerchantName(record.getMerchant().getStoreName());
+        vo.setAmount(record.getAmount());
+        vo.setFee(record.getFee());
+        vo.setActualAmount(record.getActualAmount());
+        vo.setAccount(record.getAccountName());
+        vo.setBankName(record.getBankName());
+        vo.setStatus(record.getStatus());
+        vo.setReason(record.getAuditReason());
+        vo.setApplyTime(record.getApplyTime());
+        vo.setAuditTime(record.getAuditTime());
+        vo.setTransferTime(record.getTransferTime());
+        return vo;
     }
 
-    private BannerDTO convertToBannerDTO(Banner banner) {
-        BannerDTO dto = new BannerDTO();
-        dto.setId(banner.getId());
-        dto.setTitle(banner.getTitle());
-        dto.setImage(banner.getImage());
-        dto.setImageUrl(banner.getImage()); // 兼容字段
-        dto.setLink(banner.getLink());
-        dto.setLinkUrl(banner.getLink()); // 兼容字段
-        dto.setPosition(banner.getPosition());
-        dto.setSort(banner.getSort());
-        dto.setStatus(banner.getStatus());
-        dto.setClickCount(banner.getClickCount());
-        dto.setStartTime(banner.getStartTime());
-        dto.setEndTime(banner.getEndTime());
-        dto.setCreatedAt(banner.getCreatedAt());
-        return dto;
+    private BannerVO convertToBannerVO(Banner banner) {
+        BannerVO vo = new BannerVO();
+        vo.setId(banner.getId());
+        vo.setTitle(banner.getTitle());
+        vo.setImage(banner.getImage());
+        vo.setImageUrl(banner.getImage()); // 兼容字段
+        vo.setLink(banner.getLink());
+        vo.setLinkUrl(banner.getLink()); // 兼容字段
+        vo.setPosition(banner.getPosition());
+        vo.setSort(banner.getSort());
+        vo.setStatus(banner.getStatus());
+        vo.setClickCount(banner.getClickCount());
+        vo.setStartTime(banner.getStartTime());
+        vo.setEndTime(banner.getEndTime());
+        vo.setCreatedAt(banner.getCreatedAt());
+        return vo;
     }
 
-    private AnnouncementDTO convertToAnnouncementDTO(Announcement announcement) {
-        AnnouncementDTO dto = new AnnouncementDTO();
-        dto.setId(announcement.getId());
-        dto.setTitle(announcement.getTitle());
-        dto.setContent(announcement.getContent());
-        dto.setType(announcement.getType());
-        dto.setStatus(announcement.getStatus());
-        dto.setPublishTime(announcement.getPublishTime());
-        dto.setCreatedAt(announcement.getCreatedAt());
-        return dto;
+    private AnnouncementVO convertToAnnouncementVO(Announcement announcement) {
+        AnnouncementVO vo = new AnnouncementVO();
+        vo.setId(announcement.getId());
+        vo.setTitle(announcement.getTitle());
+        vo.setContent(announcement.getContent());
+        vo.setType(announcement.getType());
+        vo.setStatus(announcement.getStatus());
+        vo.setPublishTime(announcement.getPublishTime());
+        vo.setCreatedAt(announcement.getCreatedAt());
+        return vo;
     }
 
 
-    private MerchantApplicationDTO convertToApplicationDTO(MerchantApplication application) {
-        MerchantApplicationDTO dto = new MerchantApplicationDTO();
-        dto.setId(application.getId());
-        dto.setUserId(application.getUser().getId());
-        dto.setUsername(application.getUser().getUsername());
-        dto.setStoreName(application.getStoreName());
-        dto.setStoreType(application.getStoreType());
-        dto.setCategory(application.getCategory());
-        dto.setContactName(application.getContactName());
-        dto.setContactPhone(application.getContactPhone());
-        dto.setContactEmail(application.getContactEmail());
-        dto.setBusinessLicense(application.getBusinessLicense());
-        dto.setIdCardFront(application.getIdCardFront());
-        dto.setIdCardBack(application.getIdCardBack());
-        dto.setStatus(application.getStatus().getCode());
-        dto.setStatusDescription(application.getStatus().getDescription());
-        dto.setRemark(application.getRemark());
-        dto.setApplyTime(application.getApplyTime());
-        dto.setAuditTime(application.getAuditTime());
-        return dto;
+    private MerchantApplicationVO convertToApplicationVO(MerchantApplication application) {
+        MerchantApplicationVO vo = new MerchantApplicationVO();
+        vo.setId(application.getId());
+        vo.setUserId(application.getUser().getId());
+        vo.setUsername(application.getUser().getUsername());
+        vo.setStoreName(application.getStoreName());
+        vo.setStoreType(application.getStoreType());
+        vo.setCategory(application.getCategory());
+        vo.setContactName(application.getContactName());
+        vo.setContactPhone(application.getContactPhone());
+        vo.setContactEmail(application.getContactEmail());
+        vo.setBusinessLicense(application.getBusinessLicense());
+        vo.setIdCardFront(application.getIdCardFront());
+        vo.setIdCardBack(application.getIdCardBack());
+        vo.setStatus(application.getStatus().getCode());
+        vo.setStatusDescription(application.getStatus().getDescription());
+        vo.setRemark(application.getRemark());
+        vo.setApplyTime(application.getApplyTime());
+        vo.setAuditTime(application.getAuditTime());
+        return vo;
     }
 
-    private MerchantDTO convertToMerchantDTO(Merchant merchant) {
-        MerchantDTO dto = new MerchantDTO();
-        dto.setId(merchant.getId());
-        dto.setUserId(merchant.getUserId());
-        dto.setStoreName(merchant.getStoreName());
-        dto.setStoreLogo(merchant.getStoreLogo());
-        dto.setStoreBanner(merchant.getStoreBanner());
-        dto.setStoreDescription(merchant.getStoreDescription());
-        dto.setStoreType(merchant.getStoreType());
-        dto.setCategory(merchant.getCategory());
-        dto.setContactName(merchant.getContactName());
-        dto.setContactPhone(merchant.getContactPhone());
-        dto.setContactEmail(merchant.getContactEmail());
-        dto.setRating(merchant.getRating());
-        dto.setSales(merchant.getSales());
-        dto.setFollowers(merchant.getFollowers());
-        dto.setStatus(merchant.getStatus());
-        dto.setAuditStatus(merchant.getAuditStatus().getCode());
-        return dto;
+    private MerchantVO convertToMerchantVO(Merchant merchant) {
+        MerchantVO vo = new MerchantVO();
+        vo.setId(merchant.getId());
+        vo.setUserId(merchant.getUserId());
+        vo.setStoreName(merchant.getStoreName());
+        vo.setStoreLogo(merchant.getStoreLogo());
+        vo.setStoreBanner(merchant.getStoreBanner());
+        vo.setStoreDescription(merchant.getStoreDescription());
+        vo.setStoreType(merchant.getStoreType());
+        vo.setCategory(merchant.getCategory());
+        vo.setContactName(merchant.getContactName());
+        vo.setContactPhone(merchant.getContactPhone());
+        vo.setContactEmail(merchant.getContactEmail());
+        vo.setRating(merchant.getRating());
+        vo.setSales(merchant.getSales());
+        vo.setFollowers(merchant.getFollowers());
+        vo.setStatus(merchant.getStatus());
+        vo.setAuditStatus(merchant.getAuditStatus().getCode());
+        return vo;
     }
 
     private String getCategoryDescription(String category) {

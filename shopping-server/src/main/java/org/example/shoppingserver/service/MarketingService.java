@@ -1,7 +1,7 @@
 package org.example.shoppingserver.service;
 
-import org.example.shoppingserver.model.dto.BannerDTO;
-import org.example.shoppingserver.model.dto.AnnouncementDTO;
+import org.example.shoppingserver.model.vo.marketing.AnnouncementVO;
+import org.example.shoppingserver.model.vo.marketing.BannerVO;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,7 +18,7 @@ public interface MarketingService {
      * @param position 位置：0-首页，1-分类页
      * @return 轮播图列表
      */
-    List<BannerDTO> getBanners(Integer position);
+    List<BannerVO> getBanners(Integer position);
 
     /**
      * 获取公告列表
@@ -27,7 +27,7 @@ public interface MarketingService {
      * @param limit  数量限制
      * @return 公告列表
      */
-    List<AnnouncementDTO> getAnnouncements(Integer type, int limit);
+    List<AnnouncementVO> getAnnouncements(Integer type, int limit);
 
     /**
      * 获取公告详情
@@ -35,7 +35,7 @@ public interface MarketingService {
      * @param announcementId 公告ID
      * @return 公告详情
      */
-    AnnouncementDTO getAnnouncementById(Long announcementId);
+    AnnouncementVO getAnnouncementById(Long announcementId);
 
     /**
      * 增加轮播图点击次数

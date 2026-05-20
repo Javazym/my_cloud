@@ -6,7 +6,7 @@ import lombok.EqualsAndHashCode;
 import org.example.shoppingserver.model.entity.common.BaseEntity;
 import org.example.shoppingserver.model.entity.product.Product;
 import org.example.shoppingserver.model.entity.product.ProductSku;
-import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.entity.user.User;
 
 /**
  * 购物车实体类

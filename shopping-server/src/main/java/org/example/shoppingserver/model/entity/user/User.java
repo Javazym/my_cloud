@@ -1,4 +1,4 @@
-package org.example.shoppingserver.model.entity;
+package org.example.shoppingserver.model.entity.user;
 
 import jakarta.persistence.*;
 import lombok.Data;

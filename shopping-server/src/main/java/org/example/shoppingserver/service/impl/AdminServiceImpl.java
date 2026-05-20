@@ -16,7 +16,7 @@ import org.example.shoppingserver.model.vo.merchant.MerchantGroupVO;
 import org.example.shoppingserver.model.vo.merchant.MerchantVO;
 import org.example.shoppingserver.model.vo.order.OrderVO;
 import org.example.shoppingserver.model.vo.user.UserVO;
-import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.entity.user.User;
 import org.example.shoppingserver.model.entity.admin.Admin;
 import org.example.shoppingserver.model.entity.common.AuditStatus;
 import org.example.shoppingserver.model.entity.common.Category;

@@ -5,9 +5,12 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.example.shoppingserver.model.entity.merchant.Merchant;
 import org.example.shoppingserver.model.entity.common.BaseEntity;
+import org.example.shoppingserver.model.entity.product.Product;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 满减活动实体类
@@ -86,10 +89,15 @@ public class DiscountActivity extends BaseEntity {
     private String scopeType = "all";
 
     /**
-     * 适用范围ID列表（JSON格式）
+     * 关联的商品列表（当scopeType为product时）
      */
-    @Column(name = "scope_ids", columnDefinition = "TEXT")
-    private String scopeIds;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "discount_activity_products",
+        joinColumns = @JoinColumn(name = "activity_id"),
+        inverseJoinColumns = @JoinColumn(name = "product_id")
+    )
+    private List<Product> products = new ArrayList<>();
 
     /**
      * 每人限用次数
@@ -129,5 +137,19 @@ public class DiscountActivity extends BaseEntity {
         } else {
             status = 1;
         }
+    }
+
+    /**
+     * 添加商品
+     */
+    public void addProduct(Product product) {
+        products.add(product);
+    }
+
+    /**
+     * 移除商品
+     */
+    public void removeProduct(Product product) {
+        products.remove(product);
     }
 }

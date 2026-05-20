@@ -3,7 +3,7 @@ package org.example.shoppingserver.model.entity.order;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.entity.user.User;
 import org.example.shoppingserver.model.entity.common.BaseEntity;
 import org.example.shoppingserver.model.entity.merchant.Merchant;
 

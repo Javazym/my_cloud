@@ -4,13 +4,14 @@ import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.model.dto.coupon.CouponQueryDTO;
 import org.example.shoppingserver.model.vo.coupon.CouponVO;
 import org.example.shoppingserver.model.vo.coupon.UserCouponVO;
 import org.example.shoppingserver.model.dto.coupon.ValidateResultDTO;
 import org.example.shoppingserver.model.entity.coupon.Coupon;
 import org.example.shoppingserver.model.entity.coupon.UserCoupon;
-import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.entity.user.User;
 import org.example.shoppingserver.model.vo.coupon.ValidateResultVO;
 import org.example.shoppingserver.repository.CouponRepository;
 import org.example.shoppingserver.repository.UserCouponRepository;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -209,12 +211,25 @@ public class CouponServiceImpl implements CouponService {
     // ====================== 9. 获取指定商品的可用优惠券 ======================
     @Override
     public List<CouponVO> getAvailableCouponsForProduct(Long productId, Long merchantId) {
+        String userId = UserHolder.getCurrentUserId();
         LocalDateTime now = LocalDateTime.now();
-        return couponRepository.findAvailableCouponsByProductId(
+        
+        // 1. 获取适用于该商品的可用优惠券
+        List<Coupon> availableCoupons = couponRepository.findAvailableCouponsByProductId(
                 String.valueOf(productId), 
                 merchantId, 
-                now).stream()
+                now);
+        
+        // 2. 获取用户已领取的优惠券ID列表
+        List<UserCoupon> userCoupons = userCouponRepository.findAllByUserId(userId);
+        Set<Long> receivedCouponIds = userCoupons.stream()
+                .map(uc -> uc.getCoupon().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        
+        // 3. 过滤掉用户已领取的优惠券
+        return availableCoupons.stream()
                 .filter(coupon -> coupon.isValid()) // 确保优惠券在有效期内
+                .filter(coupon -> !receivedCouponIds.contains(coupon.getId())) // 过滤已领取的
                 .map(this::convertToVO)
                 .collect(java.util.stream.Collectors.toList());
     }

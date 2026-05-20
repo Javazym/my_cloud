@@ -42,6 +42,68 @@ public class ProductDetailVO implements Serializable {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    // ==================== 活动信息 ====================
+
+    /**
+     * 是否有活动
+     */
+    private Boolean hasActivity = false;
+
+    /**
+     * 活动类型：1-秒杀，2-满减
+     */
+    private Integer activityType;
+
+    /**
+     * 活动ID
+     */
+    private Long activityId;
+
+    /**
+     * 活动名称
+     */
+    private String activityName;
+
+    /**
+     * 活动描述（满减活动）
+     */
+    private String activityDescription;
+
+    /**
+     * 活动价格（秒杀价）
+     */
+    private BigDecimal activityPrice;
+
+    /**
+     * 活动开始时间
+     */
+    private LocalDateTime activityStartTime;
+
+    /**
+     * 活动结束时间
+     */
+    private LocalDateTime activityEndTime;
+
+    /**
+     * 活动状态：0-未开始，1-进行中，2-已结束
+     */
+    private Integer activityStatus;
+
+    /**
+     * 秒杀库存（仅秒杀活动）
+     */
+    private Integer seckillStock;
+
+    /**
+     * 已抢购数量（仅秒杀活动）
+     */
+    private Integer seckillSoldCount;
+
+    /**
+     * 每人限购（仅秒杀活动）
+     */
+    private Integer limitPerUser;
+
     /**
      * 商家信息VO
      */

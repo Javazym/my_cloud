@@ -9,6 +9,7 @@ import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.model.dto.order.CreateOrderDTO;
 import org.example.shoppingserver.mq.producer.OrderDelayProducer;
 import org.example.shoppingserver.service.impl.OrderServiceImpl;
+import org.example.shoppingserver.util.IdempotentUtil;
 import org.example.shoppingserver.util.config.RabbitConfig;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -34,6 +35,7 @@ public class OrderUnifiedConsumer {
 
     private final ObjectMapper objectMapper;
     private final OrderServiceImpl orderServiceImpl;
+    private final IdempotentUtil idempotentUtil;
 
     /**
      * 处理创建订单消息
@@ -44,11 +46,28 @@ public class OrderUnifiedConsumer {
         
         try {
             String body = new String(message.getBody());
-            CreateOrderDTO wrapper = objectMapper.readValue(body, CreateOrderDTO.class);
-            orderServiceImpl.createOrder(UserHolder.getCurrentUserId(),  wrapper);
+            MessageWrapper<CreateOrderDTO> wrapper = objectMapper.readValue(body, 
+                objectMapper.getTypeFactory().constructParametricType(MessageWrapper.class, CreateOrderDTO.class));
+            
+            String messageId = wrapper.getMessageId();
+            log.info("========== 收到创建订单消息 ==========" );
+            log.info("消息ID: {}", messageId);
+            log.info("数据来源: {}", wrapper.getSourceService());
+            
+            // 幂等性校验：防止重复消费
+            if (!idempotentUtil.tryProcess(messageId)) {
+                log.warn("消息已处理，跳过: messageId={}", messageId);
+                channel.basicAck(deliveryTag, false);
+                return;
+            }
+            
+            // 处理业务逻辑
+            CreateOrderDTO createOrderDTO = wrapper.getData();
+            orderServiceImpl.createOrder(UserHolder.getCurrentUserId(), createOrderDTO);
+            
             // 手动确认消息
             channel.basicAck(deliveryTag, false);
-            log.info("创建订单消息处理成功");
+            log.info("创建订单消息处理成功: messageId={}", messageId);
             
         } catch (Exception e) {
             log.error("处理创建订单消息异常", e);
@@ -67,25 +86,33 @@ public class OrderUnifiedConsumer {
     @RabbitListener(queues = RabbitConfig.ORDER_CANCEL_QUEUE)
     public void handleCancelOrder(Message message, Channel channel) {
         long deliveryTag = message.getMessageProperties().getDeliveryTag();
-        
+            
         try {
             String body = new String(message.getBody());
             MessageWrapper<?> wrapper = objectMapper.readValue(body, MessageWrapper.class);
-            
-            log.info("========== 收到取消订单消息 ==========");
-            log.info("消息ID: {}", wrapper.getMessageId());
+                
+            String messageId = wrapper.getMessageId();
+            log.info("========== 收到取消订单消息 ==========" );
+            log.info("消息ID: {}", messageId);
             log.info("路由键: {}", RabbitConfig.ORDER_CANCEL_KEY);
             log.info("数据来源: {}", wrapper.getSourceService());
             log.info("数据内容: {}", wrapper.getData());
             log.info("=====================================");
-            
+                
+            // 幂等性校验：防止重复消费
+            if (!idempotentUtil.tryProcess(messageId)) {
+                log.warn("消息已处理，跳过: messageId={}", messageId);
+                channel.basicAck(deliveryTag, false);
+                return;
+            }
+                
             // 处理业务逻辑
             processCancelOrder(wrapper.getData());
-            
+                
             // 手动确认消息
             channel.basicAck(deliveryTag, false);
-            log.info("取消订单消息处理成功");
-            
+            log.info("取消订单消息处理成功: messageId={}", messageId);
+                
         } catch (Exception e) {
             log.error("处理取消订单消息异常", e);
             try {
@@ -103,25 +130,33 @@ public class OrderUnifiedConsumer {
     @RabbitListener(queues = RabbitConfig.ORDER_PAY_QUEUE)
     public void handlePayOrder(Message message, Channel channel) {
         long deliveryTag = message.getMessageProperties().getDeliveryTag();
-        
+            
         try {
             String body = new String(message.getBody());
             MessageWrapper<?> wrapper = objectMapper.readValue(body, MessageWrapper.class);
-            
-            log.info("========== 收到支付订单消息 ==========");
-            log.info("消息ID: {}", wrapper.getMessageId());
+                
+            String messageId = wrapper.getMessageId();
+            log.info("========== 收到支付订单消息 ==========" );
+            log.info("消息ID: {}", messageId);
             log.info("路由键: {}", RabbitConfig.ORDER_PAY_KEY);
             log.info("数据来源: {}", wrapper.getSourceService());
             log.info("数据内容: {}", wrapper.getData());
             log.info("=====================================");
-            
+                
+            // 幂等性校验：防止重复消费
+            if (!idempotentUtil.tryProcess(messageId)) {
+                log.warn("消息已处理，跳过: messageId={}", messageId);
+                channel.basicAck(deliveryTag, false);
+                return;
+            }
+                
             // 处理业务逻辑
             processPayOrder(wrapper.getData());
-            
+                
             // 手动确认消息
             channel.basicAck(deliveryTag, false);
-            log.info("支付订单消息处理成功");
-            
+            log.info("支付订单消息处理成功: messageId={}", messageId);
+                
         } catch (Exception e) {
             log.error("处理支付订单消息异常", e);
             try {
@@ -139,25 +174,33 @@ public class OrderUnifiedConsumer {
     @RabbitListener(queues = RabbitConfig.ORDER_COMPLETE_QUEUE)
     public void handleCompleteOrder(Message message, Channel channel) {
         long deliveryTag = message.getMessageProperties().getDeliveryTag();
-        
+            
         try {
             String body = new String(message.getBody());
             MessageWrapper<?> wrapper = objectMapper.readValue(body, MessageWrapper.class);
-            
-            log.info("========== 收到完成订单消息 ==========");
-            log.info("消息ID: {}", wrapper.getMessageId());
+                
+            String messageId = wrapper.getMessageId();
+            log.info("========== 收到完成订单消息 ==========" );
+            log.info("消息ID: {}", messageId);
             log.info("路由键: {}", RabbitConfig.ORDER_COMPLETE_KEY);
             log.info("数据来源: {}", wrapper.getSourceService());
             log.info("数据内容: {}", wrapper.getData());
             log.info("=====================================");
-            
+                
+            // 幂等性校验：防止重复消费
+            if (!idempotentUtil.tryProcess(messageId)) {
+                log.warn("消息已处理，跳过: messageId={}", messageId);
+                channel.basicAck(deliveryTag, false);
+                return;
+            }
+                
             // 处理业务逻辑
             processCompleteOrder(wrapper.getData());
-            
+                
             // 手动确认消息
             channel.basicAck(deliveryTag, false);
-            log.info("完成订单消息处理成功");
-            
+            log.info("完成订单消息处理成功: messageId={}", messageId);
+                
         } catch (Exception e) {
             log.error("处理完成订单消息异常", e);
             try {

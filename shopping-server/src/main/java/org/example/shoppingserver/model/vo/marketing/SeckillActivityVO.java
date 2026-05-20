@@ -83,4 +83,41 @@ public class SeckillActivityVO implements Serializable {
      * 排序
      */
     private Integer sort;
+
+    // ==================== 商品基本信息 ====================
+
+    /**
+     * 商品名称
+     */
+    private String productName;
+
+    /**
+     * 商品副标题
+     */
+    private String productSubName;
+
+    /**
+     * 商品主图
+     */
+    private String productImage;
+
+    /**
+     * 商品价格（原价）
+     */
+    private BigDecimal productPrice;
+
+    /**
+     * 商品库存
+     */
+    private Integer productStock;
+
+    /**
+     * 商品销量
+     */
+    private Integer productSoldCount;
+
+    /**
+     * 商品评分
+     */
+    private BigDecimal productRating;
 }

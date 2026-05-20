@@ -12,10 +12,12 @@ import org.example.shoppingserver.model.entity.coupon.UserCoupon;
 import org.example.shoppingserver.repository.OrderRepository;
 import org.example.shoppingserver.repository.ProductSkuRepository;
 import org.example.shoppingserver.repository.UserCouponRepository;
+import org.example.shoppingserver.util.IdempotentUtil;
 import org.example.shoppingserver.util.config.RabbitConfig;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.Map;
@@ -33,6 +35,7 @@ public class OrderTimeoutConsumer {
     private final OrderRepository orderRepository;
     private final ProductSkuRepository productSkuRepository;
     private final UserCouponRepository userCouponRepository;
+    private final IdempotentUtil idempotentUtil;
 
     /**
      * 处理订单超时消息（从死信队列消费）
@@ -43,29 +46,37 @@ public class OrderTimeoutConsumer {
     @RabbitListener(queues = RabbitConfig.ORDER_DEAD_LETTER_QUEUE)
     public void handleOrderTimeout(Message message, Channel channel) {
         long deliveryTag = message.getMessageProperties().getDeliveryTag();
-        
+            
         try {
             // 1. 解析消息
             String body = new String(message.getBody());
             MessageWrapper<?> wrapper = objectMapper.readValue(body, MessageWrapper.class);
-            
-            log.info("========== 收到订单超时消息 ==========");
-            log.info("消息ID: {}", wrapper.getMessageId());
+                
+            String messageId = wrapper.getMessageId();
+            log.info("========== 收到订单超时消息 ==========" );
+            log.info("消息ID: {}", messageId);
             log.info("数据来源: {}", wrapper.getSourceService());
             log.info("数据内容: {}", wrapper.getData());
             log.info("=====================================");
-            
-            // 2. 提取订单ID
+                
+            // 2. 幂等性校验：防止重复消费
+            if (!idempotentUtil.tryProcess(messageId)) {
+                log.warn("订单超时消息已处理，跳过: messageId={}", messageId);
+                channel.basicAck(deliveryTag, false);
+                return;
+            }
+                
+            // 3. 提取订单ID
             Map<String, Object> data = (Map<String, Object>) wrapper.getData();
             Long orderId = Long.valueOf(data.get("orderId").toString());
-            
-            // 3. 处理订单超时逻辑
+                
+            // 4. 处理订单超时逻辑
             processOrderTimeout(orderId);
-            
-            // 4. 手动确认消息
+                
+            // 5. 手动确认消息
             channel.basicAck(deliveryTag, false);
-            log.info("订单超时消息处理成功: orderId={}", orderId);
-            
+            log.info("订单超时消息处理成功: orderId={}, messageId={}", orderId, messageId);
+                
         } catch (Exception e) {
             log.error("处理订单超时消息异常", e);
             try {
@@ -83,7 +94,8 @@ public class OrderTimeoutConsumer {
      * 
      * @param orderId 订单ID
      */
-    private void processOrderTimeout(Long orderId) {
+    @Transactional
+    protected void processOrderTimeout(Long orderId) {
         log.info("开始处理订单超时: orderId={}", orderId);
         
         // 1. 查询订单

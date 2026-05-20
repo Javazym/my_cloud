@@ -5,7 +5,7 @@ import org.example.shoppingserver.model.dto.merchant.*;
 import org.example.shoppingserver.model.entity.common.AuditStatus;
 import org.example.shoppingserver.model.entity.merchant.Merchant;
 import org.example.shoppingserver.model.entity.merchant.MerchantApplication;
-import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.entity.user.User;
 import org.example.shoppingserver.model.vo.merchant.MerchantApplicationVO;
 import org.example.shoppingserver.model.vo.merchant.MerchantStatisticsVO;
 import org.example.shoppingserver.model.vo.merchant.MerchantVO;

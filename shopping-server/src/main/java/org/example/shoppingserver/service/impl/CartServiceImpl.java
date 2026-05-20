@@ -8,7 +8,7 @@ import org.example.shoppingserver.model.vo.cart.CartStatisticsVO;
 import org.example.shoppingserver.model.entity.cart.CartItem;
 import org.example.shoppingserver.model.entity.product.Product;
 import org.example.shoppingserver.model.entity.product.ProductSku;
-import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.entity.user.User;
 import org.example.shoppingserver.repository.CartItemRepository;
 import org.example.shoppingserver.repository.ProductRepository;
 import org.example.shoppingserver.repository.ProductSkuRepository;

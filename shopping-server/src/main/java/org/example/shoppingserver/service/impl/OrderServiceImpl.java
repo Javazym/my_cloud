@@ -3,12 +3,12 @@ package org.example.shoppingserver.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.example.shoppingserver.common.MessageWrapper;
 import org.example.shoppingserver.model.dto.order.*;
-import org.example.shoppingserver.model.entity.UserAddress;
+import org.example.shoppingserver.model.entity.user.User;
+import org.example.shoppingserver.model.entity.user.UserAddress;
 import org.example.shoppingserver.model.vo.order.OrderVO;
 import org.example.shoppingserver.model.vo.order.OrderItemVO;
 import org.example.shoppingserver.model.vo.order.RefundVO;
 import org.example.shoppingserver.model.vo.order.OrderStatisticsVO;
-import org.example.shoppingserver.model.entity.User;
 import org.example.shoppingserver.model.entity.coupon.UserCoupon;
 import org.example.shoppingserver.model.entity.merchant.Merchant;
 import org.example.shoppingserver.model.entity.order.*;
@@ -285,6 +285,10 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("该订单已有进行中的退款申请");
         }
 
+        // 将订单状态设置为退款中
+        order.setStatus(OrderStatus.REFUNDING);
+        orderRepository.save(order);
+
         // 验证退款金额不能超过订单实付金额
         if (dto.getAmount().compareTo(order.getPayAmount()) > 0) {
             throw new RuntimeException("退款金额不能超过订单实付金额");
@@ -326,8 +330,7 @@ public class OrderServiceImpl implements OrderService {
     // ====================== 10.6. 获取退款详情 ======================
     @Override
     public RefundVO getRefundDetail(String userId, Long refundId) {
-        OrderRefund refund = orderRefundRepository.findById(refundId)
-                .orElseThrow(() -> new RuntimeException("退款申请不存在"));
+        OrderRefund refund = orderRefundRepository.findByOrderId(refundId);
         
         // 验证是否属于该用户
         if (!refund.getUser().getId().equals(userId)) {
@@ -502,6 +505,7 @@ public class OrderServiceImpl implements OrderService {
         vo.setCompleted(orderRepository.countOrdersByMerchantIdAndStatus(merchantId, OrderStatus.COMPLETED));
         vo.setCancelled(orderRepository.countOrdersByMerchantIdAndStatus(merchantId, OrderStatus.CANCELLED));
         vo.setRefunded(orderRepository.countOrdersByMerchantIdAndStatus(merchantId, OrderStatus.REFUNDED));
+        vo.setRefunding(orderRepository.countOrdersByMerchantIdAndStatus(merchantId, OrderStatus.REFUNDING));
 
         return vo;
     }
@@ -614,6 +618,8 @@ public class OrderServiceImpl implements OrderService {
             case PENDING_RECEIPT -> "待收货";
             case COMPLETED -> "已完成";
             case CANCELLED -> "已取消";
+            case REFUNDING -> "退款中";
+            case REFUNDED -> "已退款";
             default -> "未知状态";
         };
     }

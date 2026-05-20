@@ -5,8 +5,8 @@ import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.model.dto.user.UserAddressDTO;
 import org.example.shoppingserver.model.dto.user.UserDTO;
 
-import org.example.shoppingserver.model.entity.User;
-import org.example.shoppingserver.model.entity.UserAddress;
+import org.example.shoppingserver.model.entity.user.User;
+import org.example.shoppingserver.model.entity.user.UserAddress;
 import org.example.shoppingserver.model.vo.user.UserAddressVO;
 import org.example.shoppingserver.repository.UserAddressRepository;
 import org.example.shoppingserver.repository.UserRepository;

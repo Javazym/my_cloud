@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.shoppingserver.model.vo.favorite.FavoriteVO;
 import org.example.shoppingserver.model.entity.favorite.Favorite;
 import org.example.shoppingserver.model.entity.product.Product;
-import org.example.shoppingserver.model.entity.User;
+import org.example.shoppingserver.model.entity.user.User;
 import org.example.shoppingserver.repository.FavoriteRepository;
 import org.example.shoppingserver.repository.ProductRepository;
 import org.example.shoppingserver.repository.UserRepository;

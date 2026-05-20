@@ -1,9 +1,10 @@
-package org.example.shoppingserver.model.entity;
+package org.example.shoppingserver.model.entity.user;
 
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+
 import org.example.shoppingserver.model.entity.common.BaseEntity;
 
 /**

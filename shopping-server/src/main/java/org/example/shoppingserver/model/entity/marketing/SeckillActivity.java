@@ -5,12 +5,14 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.example.shoppingserver.model.entity.common.BaseEntity;
 import org.example.shoppingserver.model.entity.merchant.Merchant;
+import org.example.shoppingserver.model.entity.product.Product;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
  * 秒杀活动实体类
+ * 注意：一个商品在同一时间只能参与一个秒杀活动（业务层控制）
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -26,10 +28,11 @@ public class SeckillActivity extends BaseEntity {
     private Merchant merchant;
 
     /**
-     * 商品ID
+     * 关联商品
      */
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     /**
      * SKU ID
@@ -119,5 +122,12 @@ public class SeckillActivity extends BaseEntity {
         } else {
             status = 1;
         }
+    }
+
+    /**
+     * 获取商品ID（便捷方法）
+     */
+    public Long getProductId() {
+        return product != null ? product.getId() : null;
     }
 }

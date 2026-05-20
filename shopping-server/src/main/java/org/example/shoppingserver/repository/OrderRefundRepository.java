@@ -25,7 +25,7 @@ public interface OrderRefundRepository extends JpaRepository<OrderRefund, Long> 
     /**
      * 根据订单ID查询退款记录
      */
-    List<OrderRefund> findByOrderId(Long orderId);
+    OrderRefund findByOrderId(Long orderId);
 
     /**
      * 根据用户ID查询退款记录

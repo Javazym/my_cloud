@@ -3,9 +3,10 @@ package org.example.shoppingserver.model.entity.order;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import org.example.shoppingserver.model.entity.User;
+
 import org.example.shoppingserver.model.entity.common.BaseEntity;
 import org.example.shoppingserver.model.entity.merchant.Merchant;
+import org.example.shoppingserver.model.entity.user.User;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -81,7 +82,7 @@ public class Order extends BaseEntity {
      * 订单状态
      */
     @Enumerated(EnumType.ORDINAL)
-    @Column(name = "status")
+    @Column(name = "status", columnDefinition = "TINYINT DEFAULT 0")
     private OrderStatus status = OrderStatus.PENDING_PAYMENT;
 
     /**

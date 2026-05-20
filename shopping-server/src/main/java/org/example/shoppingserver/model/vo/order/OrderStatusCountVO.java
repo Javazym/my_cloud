@@ -46,4 +46,9 @@ public class OrderStatusCountVO implements Serializable {
      * 已退款订单数
      */
     private Long refunded;
+
+    /**
+     * 退款申请中订单数
+     */
+    private Long refunding;
 }

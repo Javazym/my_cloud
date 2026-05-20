@@ -25,9 +25,13 @@ public enum OrderStatus {
      */
     CANCELLED(4, "已取消"),
     /**
+     * 退款中
+     */
+    REFUNDING(5, "退款中"),
+    /**
      * 已退款
      */
-    REFUNDED(5, "已退款");
+    REFUNDED(6, "已退款");
 
     private final Integer code;
     private final String description;

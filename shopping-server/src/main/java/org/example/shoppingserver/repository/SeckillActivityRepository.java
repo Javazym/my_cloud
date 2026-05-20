@@ -33,7 +33,12 @@ public interface SeckillActivityRepository extends JpaRepository<SeckillActivity
     /**
      * 根据商品ID查询
      */
-    List<SeckillActivity> findByProductId(Long productId);
+    List<SeckillActivity> findByProduct_Id(Long productId);
+
+    /**
+     * 根据商品ID和状态列表查询（用于检查商品是否已有进行中的活动）
+     */
+    List<SeckillActivity> findByProduct_IdAndStatusIn(Long productId, java.util.List<Integer> statuses);
 
     /**
      * 统计商家的秒杀活动数量

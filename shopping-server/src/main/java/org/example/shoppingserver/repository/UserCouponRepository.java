@@ -27,6 +27,11 @@ public interface UserCouponRepository extends JpaRepository<UserCoupon, Long>, J
     Page<UserCoupon> findByUserId(String userId, Pageable pageable);
 
     /**
+     * 根据用户ID查询所有优惠券列表（不分页）
+     */
+    List<UserCoupon> findAllByUserId(String userId);
+
+    /**
      * 根据用户ID和状态查询优惠券列表
      */
     Page<UserCoupon> findByUserIdAndStatus(String userId, Integer status, Pageable pageable);

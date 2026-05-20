@@ -1,6 +1,7 @@
 package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.shoppingserver.model.dto.coupon.CouponCreateDTO;
 import org.example.shoppingserver.model.vo.coupon.CouponStatisticsVO;
 import org.example.shoppingserver.model.vo.coupon.CouponVO;
@@ -11,6 +12,7 @@ import org.example.shoppingserver.model.entity.coupon.Coupon;
 import org.example.shoppingserver.model.entity.marketing.DiscountActivity;
 import org.example.shoppingserver.model.entity.marketing.SeckillActivity;
 import org.example.shoppingserver.model.entity.merchant.Merchant;
+import org.example.shoppingserver.model.entity.product.Product;
 import org.example.shoppingserver.repository.*;
 import org.example.shoppingserver.service.MerchantMarketingService;
 import org.example.shoppingserver.model.vo.marketing.DiscountActivityVO;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,6 +34,7 @@ import java.util.List;
  * @author System
  * @since 2026-04-28
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MerchantMarketingServiceImpl implements MerchantMarketingService {
@@ -41,6 +45,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
     private final UserCouponRepository userCouponRepository;
     private final ProductRepository productRepository;
     private final MerchantRepository merchantRepository;
+    private final org.example.shoppingserver.util.SeckillStockUtil seckillStockUtil;
 
     /**
      * 创建秒杀活动
@@ -60,10 +65,22 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
             throw new RuntimeException("秒杀价格必须低于原价");
         }
 
+        // 验证商品是否已经有进行中的秒杀活动（一对一关系）
+        List<SeckillActivity> existingActivities = seckillActivityRepository.findByProduct_IdAndStatusIn(
+            dto.getProductId(), java.util.Arrays.asList(0, 1)); // 0-未开始，1-进行中
+        if (!existingActivities.isEmpty()) {
+            throw new RuntimeException("该商品已经参与了秒杀活动，请等待活动结束后再创建新的活动");
+        }
+
         SeckillActivity activity = new SeckillActivity();
         activity.setMerchant(merchant);
+        
+        // 查询并设置商品关联
+        Product product = productRepository.findById(dto.getProductId())
+            .orElseThrow(() -> new RuntimeException("商品不存在"));
+        activity.setProduct(product);
+        
         activity.setName(dto.getName());
-        activity.setProductId(dto.getProductId());
         activity.setSkuId(dto.getSkuId());
         activity.setSeckillPrice(dto.getSeckillPrice());
         activity.setOriginalPrice(dto.getOriginalPrice());
@@ -75,7 +92,9 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
         activity.setStatus(0);
         activity.setSort(dto.getSort() != null ? dto.getSort() : 0);
 
-        return seckillActivityRepository.save(activity).getId();
+        SeckillActivity savedActivity = seckillActivityRepository.save(activity);
+        
+        return savedActivity.getId();
     }
 
     /**
@@ -93,6 +112,19 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
 
         if (!activity.getMerchant().getId().equals(merchantId)) {
             throw new RuntimeException("无权操作此活动");
+        }
+
+        // 如果修改了时间，需要检查是否与其他活动冲突
+        if (dto.getStartTime() != null && dto.getEndTime() != null) {
+            List<SeckillActivity> conflictingActivities = seckillActivityRepository.findByProduct_IdAndStatusIn(
+                activity.getProduct().getId(), java.util.Arrays.asList(0, 1));
+            
+            // 排除当前活动本身
+            conflictingActivities.removeIf(a -> a.getId().equals(activityId));
+            
+            if (!conflictingActivities.isEmpty()) {
+                throw new RuntimeException("该商品在其他时间段已有秒杀活动，无法修改时间");
+            }
         }
 
         activity.setName(dto.getName());
@@ -190,7 +222,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
     }
 
     /**
-     * 抢购秒杀商品
+     * 抢购秒杀商品（不指定SKU，使用活动级别库存）
      *
      * @param userId 用户ID
      * @param activityId 活动ID
@@ -199,19 +231,86 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
     @Override
     @Transactional
     public boolean seckillProduct(String userId, Long activityId) {
-        SeckillActivity activity = seckillActivityRepository.findById(activityId)
-                .orElseThrow(() -> new RuntimeException("秒杀活动不存在"));
+        return seckillProductWithSku(userId, activityId, null);
+    }
 
-        if (!activity.isValid()) {
+    /**
+     * 抢购秒杀商品（指定SKU）
+     *
+     * @param userId 用户ID
+     * @param activityId 活动ID
+     * @param skuId SKU ID（可选，为null时使用活动级别库存）
+     * @return 是否抢购成功
+     */
+    public boolean seckillProductWithSku(String userId, Long activityId, Long skuId) {
+        // 1. 从Redis检查并扣减库存（原子操作）
+        boolean stockDecreased;
+        if (skuId != null) {
+            // 扣减指定SKU的库存
+            stockDecreased = seckillStockUtil.decreaseSkuStock(activityId, skuId);
+            log.debug("尝试扣减SKU库存: userId={}, activityId={}, skuId={}", userId, activityId, skuId);
+        } else {
+            // 扣减活动总库存
+            stockDecreased = seckillStockUtil.decreaseStock(activityId);
+            log.debug("尝试扣减活动库存: userId={}, activityId={}", userId, activityId);
+        }
+
+        if (!stockDecreased) {
+            log.warn("秒杀失败，库存不足或扣减失败: userId={}, activityId={}, skuId={}", 
+                    userId, activityId, skuId);
             return false;
         }
 
-        // TODO: 检查用户限购
-        // TODO: 扣减库存（需要使用乐观锁或分布式锁）
-        activity.setSoldCount(activity.getSoldCount() + 1);
-        seckillActivityRepository.save(activity);
+        try {
+            // 2. 验证活动有效性
+            SeckillActivity activity = seckillActivityRepository.findById(activityId)
+                    .orElseThrow(() -> new RuntimeException("秒杀活动不存在"));
 
-        return true;
+            if (!activity.isValid()) {
+                // 如果活动无效，恢复库存
+                if (skuId != null) {
+                    seckillStockUtil.restoreSkuStock(activityId, skuId);
+                } else {
+                    seckillStockUtil.restoreStock(activityId);
+                }
+                log.warn("秒杀失败，活动无效: userId={}, activityId={}, skuId={}", 
+                        userId, activityId, skuId);
+                return false;
+            }
+
+            // 如果指定了SKU，验证SKU是否属于该活动商品
+            if (skuId != null) {
+                if (activity.getSkuId() != null && !activity.getSkuId().equals(skuId)) {
+                    // 活动指定了SKU，但用户选择了不同的SKU
+                    if (skuId != null) {
+                        seckillStockUtil.restoreSkuStock(activityId, skuId);
+                    }
+                    log.warn("秒杀失败，SKU不匹配: userId={}, activityId={}, 活动SKU={}, 用户选择SKU={}", 
+                            userId, activityId, activity.getSkuId(), skuId);
+                    return false;
+                }
+            }
+
+            // TODO: 检查用户限购
+
+            // 3. 更新数据库中的已售数量（异步或定时同步）
+            activity.setSoldCount(activity.getSoldCount() + 1);
+            seckillActivityRepository.save(activity);
+
+            log.info("秒杀成功: userId={}, activityId={}, skuId={}", userId, activityId, skuId);
+            return true;
+
+        } catch (Exception e) {
+            // 发生异常时恢复库存
+            if (skuId != null) {
+                seckillStockUtil.restoreSkuStock(activityId, skuId);
+            } else {
+                seckillStockUtil.restoreStock(activityId);
+            }
+            log.error("秒杀异常，已恢复库存: userId={}, activityId={}, skuId={}, error={}", 
+                    userId, activityId, skuId, e.getMessage(), e);
+            throw e;
+        }
     }
 
     // ==================== 满减活动管理 ====================
@@ -241,12 +340,23 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
         activity.setEndTime(dto.getEndTime());
         activity.setStatus(0);
         activity.setScopeType(dto.getScopeType());
-        activity.setScopeIds(dto.getScopeIds());
         activity.setLimitPerUser(dto.getLimitPerUser());
         activity.setUsedCount(0);
         activity.setSort(dto.getSort() != null ? dto.getSort() : 0);
 
-        return discountActivityRepository.save(activity).getId();
+        // 如果是指定商品的活动，设置商品关联
+        if ("product".equals(dto.getScopeType()) && dto.getScopeIds() != null) {
+            List<Long> productIds = parseProductIdsFromJson(dto.getScopeIds());
+            for (Long productId : productIds) {
+                Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("商品不存在: " + productId));
+                activity.addProduct(product);
+            }
+        }
+
+        DiscountActivity savedActivity = discountActivityRepository.save(activity);
+        
+        return savedActivity.getId();
     }
 
     /**
@@ -273,9 +383,22 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
         activity.setStartTime(dto.getStartTime());
         activity.setEndTime(dto.getEndTime());
         activity.setScopeType(dto.getScopeType());
-        activity.setScopeIds(dto.getScopeIds());
         activity.setLimitPerUser(dto.getLimitPerUser());
         activity.setSort(dto.getSort());
+
+        // 如果是指定商品的活动，更新商品关联
+        if ("product".equals(dto.getScopeType()) && dto.getScopeIds() != null) {
+            // 先清空现有商品关联
+            activity.getProducts().clear();
+            
+            // 添加新的商品关联
+            List<Long> productIds = parseProductIdsFromJson(dto.getScopeIds());
+            for (Long productId : productIds) {
+                Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("商品不存在: " + productId));
+                activity.addProduct(product);
+            }
+        }
 
         discountActivityRepository.save(activity);
     }
@@ -295,7 +418,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
         if (!activity.getMerchant().getId().equals(merchantId)) {
             throw new RuntimeException("无权操作此活动");
         }
-
+        
         discountActivityRepository.delete(activity);
     }
 
@@ -575,7 +698,15 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
         vo.setEndTime(activity.getEndTime());
         vo.setStatus(activity.getStatus());
         vo.setScopeType(activity.getScopeType());
-        vo.setScopeIds(activity.getScopeIds());
+        
+        // 将商品ID列表转换为JSON字符串（用于返回给前端）
+        if (activity.getProducts() != null && !activity.getProducts().isEmpty()) {
+            List<Long> productIds = activity.getProducts().stream()
+                .map(Product::getId)
+                .collect(java.util.stream.Collectors.toList());
+            vo.setScopeIds(productIds.toString());
+        }
+        
         vo.setLimitPerUser(activity.getLimitPerUser());
         vo.setUsedCount(activity.getUsedCount());
         vo.setSort(activity.getSort());
@@ -605,5 +736,30 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
             vo.setMerchantId(coupon.getMerchant().getId());
         }
         return vo;
+    }
+
+    /**
+     * 从 JSON 字符串解析商品ID列表
+     *
+     * @param jsonStr JSON字符串
+     * @return 商品ID列表
+     */
+    private List<Long> parseProductIdsFromJson(String jsonStr) {
+        try {
+            // 简单解析 JSON 数组，例如: [1,2,3]
+            String cleaned = jsonStr.replaceAll("[\\[\\]\\s]", "");
+            if (cleaned.isEmpty()) {
+                return new ArrayList<>();
+            }
+            
+            return java.util.Arrays.stream(cleaned.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Long::parseLong)
+                .collect(java.util.stream.Collectors.toList());
+        } catch (Exception e) {
+            log.error("解析商品ID列表失败 - jsonStr: {}", jsonStr, e);
+            return new ArrayList<>();
+        }
     }
 }

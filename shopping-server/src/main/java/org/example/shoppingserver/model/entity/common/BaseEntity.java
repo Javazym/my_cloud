@@ -2,9 +2,6 @@ package org.example.shoppingserver.model.entity.common;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -15,7 +12,6 @@ import java.time.LocalDateTime;
  */
 @Data
 @MappedSuperclass
-@EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -30,14 +26,12 @@ public abstract class BaseEntity implements Serializable {
     /**
      * 创建时间
      */
-    @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     /**
      * 更新时间
      */
-    @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -46,4 +40,22 @@ public abstract class BaseEntity implements Serializable {
      */
     @Column(name = "is_deleted")
     private Integer deleted = 0;
+
+    /**
+     * 持久化前自动设置创建时间和更新时间
+     */
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    /**
+     * 更新前自动设置更新时间
+     */
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

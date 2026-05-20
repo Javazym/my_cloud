@@ -18,6 +18,7 @@ import org.example.shoppingserver.model.entity.product.ProductSpecValue;
 import org.example.shoppingserver.model.vo.product.ProductDetailVO;
 import org.example.shoppingserver.model.vo.product.ProductVO;
 import org.example.shoppingserver.repository.CategoryRepository;
+import org.example.shoppingserver.repository.FavoriteRepository;
 import org.example.shoppingserver.repository.MerchantRepository;
 import org.example.shoppingserver.repository.ProductRepository;
 import org.example.shoppingserver.service.ProductService;
@@ -42,6 +43,7 @@ public class ProduceServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final MerchantRepository merchantRepository;
+    private final FavoriteRepository favoriteRepository;
 
     @Override
     @Transactional
@@ -306,7 +308,19 @@ public class ProduceServiceImpl implements ProductService {
             return cb.and(predicates.toArray(new Predicate[0]));
         }, pageable);
 
-        return page.map(ProductConverter::toVO);
+        // 获取当前用户ID
+        String userId = UserHolder.getCurrentUserId();
+        
+        // 转换为 VO 并填充收藏状态
+        return page.map(product -> {
+            ProductVO vo = ProductConverter.toVO(product);
+            // 设置用户是否已收藏
+            if (userId != null && !userId.isEmpty()) {
+                boolean isFavorited = favoriteRepository.existsByUserIdAndProductId(userId, product.getId());
+                vo.setIsFavorited(isFavorited);
+            }
+            return vo;
+        });
     }
 
     @Override
@@ -314,6 +328,7 @@ public class ProduceServiceImpl implements ProductService {
     public ProductDetailVO getProductDetail(Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("商品不存在"));
+
         return ProductConverter.toDetailVO(product);
     }
 
@@ -322,7 +337,14 @@ public class ProduceServiceImpl implements ProductService {
     public List<ProductVO> getHotProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findHotProducts(pageable);
-        return ProductConverter.toVOList(products);
+        String userId = UserHolder.getCurrentUserId();
+        return ProductConverter.toVOList(products).stream()
+                .peek(vo -> {
+                    if (userId != null && !userId.isEmpty()) {
+                        vo.setIsFavorited(favoriteRepository.existsByUserIdAndProductId(userId, vo.getId()));
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -330,7 +352,14 @@ public class ProduceServiceImpl implements ProductService {
     public List<ProductVO> getFeaturedProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findFeaturedProducts(pageable);
-        return ProductConverter.toVOList(products);
+        String userId = UserHolder.getCurrentUserId();
+        return ProductConverter.toVOList(products).stream()
+                .peek(vo -> {
+                    if (userId != null && !userId.isEmpty()) {
+                        vo.setIsFavorited(favoriteRepository.existsByUserIdAndProductId(userId, vo.getId()));
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -338,7 +367,14 @@ public class ProduceServiceImpl implements ProductService {
     public List<ProductVO> getNewProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findNewProducts(pageable);
-        return ProductConverter.toVOList(products);
+        String userId = UserHolder.getCurrentUserId();
+        return ProductConverter.toVOList(products).stream()
+                .peek(vo -> {
+                    if (userId != null && !userId.isEmpty()) {
+                        vo.setIsFavorited(favoriteRepository.existsByUserIdAndProductId(userId, vo.getId()));
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -346,14 +382,29 @@ public class ProduceServiceImpl implements ProductService {
     public List<ProductVO> getRecommendedProducts(int limit) {
         Pageable pageable = PageRequest.of(0, limit);
         List<Product> products = productRepository.findRecommendedProducts(pageable);
-        return ProductConverter.toVOList(products);
+        String userId = UserHolder.getCurrentUserId();
+        return ProductConverter.toVOList(products).stream()
+                .peek(vo -> {
+                    if (userId != null && !userId.isEmpty()) {
+                        vo.setIsFavorited(favoriteRepository.existsByUserIdAndProductId(userId, vo.getId()));
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
     public Page<ProductVO> searchProducts(String keyword, int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
         Page<Product> page = productRepository.searchProducts(keyword, pageable);
-        return page.map(ProductConverter::toVO);
+        String userId = UserHolder.getCurrentUserId();
+        
+        return page.map(product -> {
+            ProductVO vo = ProductConverter.toVO(product);
+            if (userId != null && !userId.isEmpty()) {
+                vo.setIsFavorited(favoriteRepository.existsByUserIdAndProductId(userId, product.getId()));
+            }
+            return vo;
+        });
     }
 
     @Override

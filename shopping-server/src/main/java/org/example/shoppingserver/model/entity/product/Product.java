@@ -176,6 +176,19 @@ public class Product extends BaseEntity {
     private String keywords;
 
     /**
+     * 关联的秒杀活动列表（历史活动）
+     * 注意：业务层保证同一时间只有一个进行中的活动
+     */
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    private List<org.example.shoppingserver.model.entity.marketing.SeckillActivity> seckillActivities = new ArrayList<>();
+
+    /**
+     * 关联的满减活动列表
+     */
+    @ManyToMany(mappedBy = "products", fetch = FetchType.LAZY)
+    private List<org.example.shoppingserver.model.entity.marketing.DiscountActivity> discountActivities = new ArrayList<>();
+
+    /**
      * SKU列表
      */
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -226,5 +239,36 @@ public class Product extends BaseEntity {
     public void addSpec(ProductSpec spec) {
         specs.add(spec);
         spec.setProduct(this);
+    }
+
+    /**
+     * 获取当前有效的秒杀活动
+     */
+    public org.example.shoppingserver.model.entity.marketing.SeckillActivity getActiveSeckillActivity() {
+        if (seckillActivities == null || seckillActivities.isEmpty()) {
+            return null;
+        }
+        // 查找进行中的活动
+        return seckillActivities.stream()
+            .filter(activity -> activity.getStatus() == 1 
+                && java.time.LocalDateTime.now().isAfter(activity.getStartTime())
+                && java.time.LocalDateTime.now().isBefore(activity.getEndTime())
+                && activity.getStock() > activity.getSoldCount())
+            .findFirst()
+            .orElse(null);
+    }
+
+    /**
+     * 获取当前有效的满减活动列表
+     */
+    public List<org.example.shoppingserver.model.entity.marketing.DiscountActivity> getActiveDiscountActivities() {
+        if (discountActivities == null || discountActivities.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return discountActivities.stream()
+            .filter(activity -> activity.getStatus() == 1
+                && java.time.LocalDateTime.now().isAfter(activity.getStartTime())
+                && java.time.LocalDateTime.now().isBefore(activity.getEndTime()))
+            .collect(java.util.stream.Collectors.toList());
     }
 }

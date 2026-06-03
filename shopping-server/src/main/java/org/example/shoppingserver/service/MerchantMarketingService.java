@@ -54,6 +54,16 @@ public interface MerchantMarketingService {
      */
     boolean seckillProduct(String userId, Long activityId);
 
+    /**
+     * 抢购秒杀商品（指定SKU）
+     */
+    boolean seckillProductWithSku(String userId, Long activityId, Long skuId);
+
+    /**
+     * 回滚秒杀库存（用于订单创建失败时）
+     */
+    void rollbackSeckillStock(Long activityId, Long skuId);
+
     // ==================== 满减活动管理 ====================
 
     /**

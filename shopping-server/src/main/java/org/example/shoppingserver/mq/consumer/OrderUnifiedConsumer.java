@@ -63,7 +63,16 @@ public class OrderUnifiedConsumer {
             
             // 处理业务逻辑
             CreateOrderDTO createOrderDTO = wrapper.getData();
-            orderServiceImpl.createOrder(UserHolder.getCurrentUserId(), createOrderDTO);
+            log.info("数据内容: {}", createOrderDTO);
+            
+            // 从 DTO 中获取 userId（MQ 环境中 UserHolder 不可用）
+            String userId = createOrderDTO.getUserId();
+            if (userId == null) {
+                // 兼容普通订单：从 UserHolder 获取
+                userId = UserHolder.getCurrentUserId();
+            }
+            
+            orderServiceImpl.createOrder(userId, createOrderDTO);
             
             // 手动确认消息
             channel.basicAck(deliveryTag, false);

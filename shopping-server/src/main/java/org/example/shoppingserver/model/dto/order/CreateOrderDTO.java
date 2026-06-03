@@ -14,6 +14,11 @@ public class CreateOrderDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /**
+     * 用户ID（用于MQ消息传递）
+     */
+    private String userId;
+
+    /**
      * 地址ID
      */
     private Long addressId;

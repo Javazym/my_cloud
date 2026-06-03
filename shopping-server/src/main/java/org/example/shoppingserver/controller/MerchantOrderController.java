@@ -9,6 +9,7 @@ import org.example.shoppingserver.model.vo.order.RefundVO;
 import org.example.shoppingserver.model.vo.order.OrderStatisticsVO;
 import org.example.shoppingserver.model.vo.order.OrderStatusCountVO;
 import org.example.shoppingserver.service.OrderService;
+import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/merchant/orders")
 @RequiredArgsConstructor
+@RequireRole(value = {"ROLE_MERCHANT"})
 public class MerchantOrderController {
 
     private final OrderService orderService;

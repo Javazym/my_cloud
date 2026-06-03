@@ -18,6 +18,7 @@ import org.example.shoppingserver.model.vo.order.OrderVO;
 import org.example.shoppingserver.model.vo.product.CategoryVO;
 import org.example.shoppingserver.model.vo.product.ProductVO;
 import org.example.shoppingserver.service.AdminService;
+import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 import org.example.shoppingserver.model.vo.user.UserVO;
@@ -32,6 +33,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
+@RequireRole(value = {"ROLE_ADMIN"})
 public class AdminController {
 
  private final AdminService adminService;

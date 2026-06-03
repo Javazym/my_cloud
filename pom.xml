@@ -15,6 +15,7 @@
         <module>my-gateway</module>
         <module>auth-server</module>
         <module>shopping-server</module>
+        <module>agent-server</module>
     </modules>
 
     <parent>

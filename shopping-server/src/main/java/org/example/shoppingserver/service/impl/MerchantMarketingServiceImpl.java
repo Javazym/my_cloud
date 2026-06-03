@@ -46,6 +46,7 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
     private final ProductRepository productRepository;
     private final MerchantRepository merchantRepository;
     private final org.example.shoppingserver.util.SeckillStockUtil seckillStockUtil;
+    private final org.example.shoppingserver.task.SeckillInventoryInitializer seckillInventoryInitializer;
 
     /**
      * 创建秒杀活动
@@ -80,8 +81,9 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
             .orElseThrow(() -> new RuntimeException("商品不存在"));
         activity.setProduct(product);
         
+        // 秒杀活动不需要指定SKU，库存会均分给商品的所有SKU
+        activity.setSkuId(null);
         activity.setName(dto.getName());
-        activity.setSkuId(dto.getSkuId());
         activity.setSeckillPrice(dto.getSeckillPrice());
         activity.setOriginalPrice(dto.getOriginalPrice());
         activity.setStock(dto.getStock());
@@ -92,7 +94,26 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
         activity.setStatus(0);
         activity.setSort(dto.getSort() != null ? dto.getSort() : 0);
 
+        // 验证库存是否大于0
+        if (dto.getStock() == null || dto.getStock() <= 0) {
+            throw new RuntimeException("秒杀库存必须大于0");
+        }
+
+        // 验证商品是否有SKU
+        if (product.getSkus() == null || product.getSkus().isEmpty()) {
+            throw new RuntimeException("商品没有可用的SKU，无法创建秒杀活动");
+        }
+
         SeckillActivity savedActivity = seckillActivityRepository.save(activity);
+        
+        // 预热库存到Redis
+        try {
+            seckillInventoryInitializer.preloadActivityStock(savedActivity.getId());
+            log.info("秒杀活动库存预热成功: activityId={}, stock={}", savedActivity.getId(), savedActivity.getStock());
+        } catch (Exception e) {
+            log.error("秒杀活动库存预热失败: activityId={}, error={}", savedActivity.getId(), e.getMessage(), e);
+            // 预热失败不影响活动创建，可以后续手动刷新
+        }
         
         return savedActivity.getId();
     }
@@ -236,64 +257,66 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
 
     /**
      * 抢购秒杀商品（指定SKU）
+     * 注意：现在秒杀活动不再指定SKU，用户必须传skuId选择要购买的SKU
      *
      * @param userId 用户ID
      * @param activityId 活动ID
-     * @param skuId SKU ID（可选，为null时使用活动级别库存）
+     * @param skuId SKU ID（必须指定）
      * @return 是否抢购成功
      */
+    @Override
     public boolean seckillProductWithSku(String userId, Long activityId, Long skuId) {
-        // 1. 从Redis检查并扣减库存（原子操作）
-        boolean stockDecreased;
-        if (skuId != null) {
-            // 扣减指定SKU的库存
-            stockDecreased = seckillStockUtil.decreaseSkuStock(activityId, skuId);
-            log.debug("尝试扣减SKU库存: userId={}, activityId={}, skuId={}", userId, activityId, skuId);
-        } else {
-            // 扣减活动总库存
-            stockDecreased = seckillStockUtil.decreaseStock(activityId);
-            log.debug("尝试扣减活动库存: userId={}, activityId={}", userId, activityId);
+        // 1. 验证SKU参数（现在必须指定SKU）
+        if (skuId == null) {
+            log.warn("秒杀必须指定SKU: userId={}, activityId={}", userId, activityId);
+            return false;
         }
+        
+        // 2. 从Redis检查并扣减指定SKU的库存（原子操作）
+        boolean stockDecreased = seckillStockUtil.decreaseSkuStock(activityId, skuId);
+        log.debug("尝试扣减SKU库存: userId={}, activityId={}, skuId={}", userId, activityId, skuId);
 
         if (!stockDecreased) {
-            log.warn("秒杀失败，库存不足或扣减失败: userId={}, activityId={}, skuId={}", 
+            log.warn("秒杀失败，SKU库存不足或扣减失败: userId={}, activityId={}, skuId={}", 
                     userId, activityId, skuId);
             return false;
         }
 
         try {
-            // 2. 验证活动有效性
+            // 3. 验证活动有效性
             SeckillActivity activity = seckillActivityRepository.findById(activityId)
                     .orElseThrow(() -> new RuntimeException("秒杀活动不存在"));
 
             if (!activity.isValid()) {
                 // 如果活动无效，恢复库存
-                if (skuId != null) {
-                    seckillStockUtil.restoreSkuStock(activityId, skuId);
-                } else {
-                    seckillStockUtil.restoreStock(activityId);
-                }
+                seckillStockUtil.restoreSkuStock(activityId, skuId);
                 log.warn("秒杀失败，活动无效: userId={}, activityId={}, skuId={}", 
                         userId, activityId, skuId);
                 return false;
             }
 
-            // 如果指定了SKU，验证SKU是否属于该活动商品
-            if (skuId != null) {
-                if (activity.getSkuId() != null && !activity.getSkuId().equals(skuId)) {
-                    // 活动指定了SKU，但用户选择了不同的SKU
-                    if (skuId != null) {
-                        seckillStockUtil.restoreSkuStock(activityId, skuId);
-                    }
-                    log.warn("秒杀失败，SKU不匹配: userId={}, activityId={}, 活动SKU={}, 用户选择SKU={}", 
-                            userId, activityId, activity.getSkuId(), skuId);
-                    return false;
-                }
+            // 4. 验证SKU是否属于该活动的商品
+            Product product = activity.getProduct();
+            if (product == null || product.getSkus() == null) {
+                seckillStockUtil.restoreSkuStock(activityId, skuId);
+                log.warn("秒杀失败，商品或SKU列表为空: userId={}, activityId={}, skuId={}", 
+                        userId, activityId, skuId);
+                return false;
+            }
+            
+            boolean skuBelongsToProduct = product.getSkus().stream()
+                    .anyMatch(sku -> sku.getId().equals(skuId));
+            
+            if (!skuBelongsToProduct) {
+                seckillStockUtil.restoreSkuStock(activityId, skuId);
+                log.warn("秒杀失败，SKU不属于该商品: userId={}, activityId={}, skuId={}, productId={}", 
+                        userId, activityId, skuId, product.getId());
+                return false;
             }
 
             // TODO: 检查用户限购
 
-            // 3. 更新数据库中的已售数量（异步或定时同步）
+            // 5. 更新数据库中的已售数量（异步或定时同步）
             activity.setSoldCount(activity.getSoldCount() + 1);
             seckillActivityRepository.save(activity);
 
@@ -302,15 +325,23 @@ public class MerchantMarketingServiceImpl implements MerchantMarketingService {
 
         } catch (Exception e) {
             // 发生异常时恢复库存
-            if (skuId != null) {
-                seckillStockUtil.restoreSkuStock(activityId, skuId);
-            } else {
-                seckillStockUtil.restoreStock(activityId);
-            }
+            seckillStockUtil.restoreSkuStock(activityId, skuId);
             log.error("秒杀异常，已恢复库存: userId={}, activityId={}, skuId={}, error={}", 
                     userId, activityId, skuId, e.getMessage(), e);
             throw e;
         }
+    }
+
+    /**
+     * 回滚秒杀库存（用于订单创建失败时）
+     *
+     * @param activityId 活动ID
+     * @param skuId SKU ID
+     */
+    @Override
+    public void rollbackSeckillStock(Long activityId, Long skuId) {
+        seckillStockUtil.restoreSkuStock(activityId, skuId);
+        log.info("回滚秒杀库存: activityId={}, skuId={}", activityId, skuId);
     }
 
     // ==================== 满减活动管理 ====================

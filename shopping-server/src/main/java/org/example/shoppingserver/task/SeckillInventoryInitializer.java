@@ -69,10 +69,7 @@ public class SeckillInventoryInitializer implements ApplicationRunner {
         
         try {
             // 查询所有状态为进行中(1)或未开始(0)的秒杀活动
-            List<SeckillActivity> activities = seckillActivityRepository.findAll((root, query, cb) -> {
-                // 只查询未开始和进行中的活动
-                return root.get("status").in(0, 1);
-            });
+            List<SeckillActivity> activities = seckillActivityRepository.findByStatusIn(List.of(0, 1));
 
             if (activities == null || activities.isEmpty()) {
                 log.info("没有找到需要初始化的秒杀活动");
@@ -86,45 +83,11 @@ public class SeckillInventoryInitializer implements ApplicationRunner {
 
             for (SeckillActivity activity : activities) {
                 try {
-                    // 检查活动是否有效（时间范围内且有库存）
-                    if (!isValidActivity(activity)) {
-                        log.debug("跳过无效活动: ID={}, 名称={}", activity.getId(), activity.getName());
-                        continue;
-                    }
-
-                    // 计算过期时间（活动结束时间与当前时间的差值）
-                    long expireSeconds = calculateExpireSeconds(activity.getEndTime());
-
-                    // 存储库存信息
-                    String stockKey = SECKILL_STOCK_KEY_PREFIX + activity.getId();
-                    stringRedisTemplate.opsForValue().set(stockKey, String.valueOf(activity.getStock()), 
-                            expireSeconds, TimeUnit.SECONDS);
-
-                    // 存储已售数量
-                    String soldKey = SECKILL_SOLD_KEY_PREFIX + activity.getId();
-                    stringRedisTemplate.opsForValue().set(soldKey, String.valueOf(activity.getSoldCount()), 
-                            expireSeconds, TimeUnit.SECONDS);
-
-                    // 存储活动基本信息（JSON格式）
-                    String infoKey = SECKILL_INFO_KEY_PREFIX + activity.getId();
-                    String activityInfo = buildActivityInfo(activity);
-                    stringRedisTemplate.opsForValue().set(infoKey, activityInfo, 
-                            expireSeconds, TimeUnit.SECONDS);
-
-                    // 如果活动指定了SKU，初始化该SKU的库存
-                    if (activity.getSkuId() != null) {
-                        initializeSkuStock(activity.getId(), activity.getSkuId(), 
-                                activity.getStock(), activity.getSoldCount(), expireSeconds);
-                    } else {
-                        // 如果未指定SKU，查询商品的所有SKU并均分库存
-                        distributeStockToSkus(activity.getId(), activity.getProductId(), 
-                                activity.getStock(), activity.getSoldCount(), expireSeconds);
-                    }
-
+                    preloadActivityStock(activity.getId());
                     successCount++;
-                    log.debug("活动库存初始化成功: ID={}, 名称={}, 库存={}, 已售={}, 过期时间={}秒", 
+                    log.debug("活动库存初始化成功: ID={}, 名称={}, 库存={}, 已售={}", 
                             activity.getId(), activity.getName(), activity.getStock(), 
-                            activity.getSoldCount(), expireSeconds);
+                            activity.getSoldCount());
 
                 } catch (Exception e) {
                     failCount++;
@@ -139,6 +102,59 @@ public class SeckillInventoryInitializer implements ApplicationRunner {
         } catch (Exception e) {
             log.error("秒杀活动库存初始化异常", e);
         }
+    }
+
+    /**
+     * 预热单个活动的库存到Redis
+     * 用于创建活动时自动调用
+     *
+     * @param activityId 活动ID
+     */
+    public void preloadActivityStock(Long activityId) {
+        SeckillActivity activity = seckillActivityRepository.findById(activityId)
+                .orElseThrow(() -> new RuntimeException("秒杀活动不存在: " + activityId));
+
+        log.info("开始预热活动库存: ID={}, 名称={}, 状态={}, 库存={}, 已售={}, SKU={}, 结束时间={}",
+                activity.getId(), activity.getName(), activity.getStatus(),
+                activity.getStock(), activity.getSoldCount(), activity.getSkuId(), activity.getEndTime());
+
+        // 检查活动是否有效（仅记录警告，不阻止预热）
+        if (!isValidActivity(activity)) {
+            log.warn("活动状态异常但仍会预热: ID={}, 状态={}, 库存={}, 已售={}",
+                    activity.getId(), activity.getStatus(), activity.getStock(), activity.getSoldCount());
+        }
+
+        // 计算过期时间
+        long expireSeconds = calculateExpireSeconds(activity.getEndTime());
+        log.info("活动过期时间: {}秒", expireSeconds);
+
+        // 存储库存信息
+        String stockKey = SECKILL_STOCK_KEY_PREFIX + activity.getId();
+        stringRedisTemplate.opsForValue().set(stockKey, String.valueOf(activity.getStock()),
+                expireSeconds, TimeUnit.SECONDS);
+        log.info("写入活动库存: key={}, value={}", stockKey, activity.getStock());
+
+        // 存储已售数量
+        String soldKey = SECKILL_SOLD_KEY_PREFIX + activity.getId();
+        stringRedisTemplate.opsForValue().set(soldKey, String.valueOf(activity.getSoldCount()),
+                expireSeconds, TimeUnit.SECONDS);
+        log.info("写入活动已售: key={}, value={}", soldKey, activity.getSoldCount());
+
+        // 存储活动基本信息（JSON格式）
+        String infoKey = SECKILL_INFO_KEY_PREFIX + activity.getId();
+        String activityInfo = buildActivityInfo(activity);
+        stringRedisTemplate.opsForValue().set(infoKey, activityInfo,
+                expireSeconds, TimeUnit.SECONDS);
+
+        // 无论是否指定SKU，都将库存均分到商品的所有SKU
+        log.info("开始均分库存到所有SKU: activityId={}, productId={}, 总库存={}",
+                activity.getId(), activity.getProductId(), activity.getStock());
+        distributeStockToSkus(activity.getId(), activity.getProductId(),
+                activity.getStock(), activity.getSoldCount(), expireSeconds);
+
+        log.info("活动库存预热完成: ID={}, 名称={}, 库存={}, 已售={}, 过期时间={}秒",
+                activity.getId(), activity.getName(), activity.getStock(),
+                activity.getSoldCount(), expireSeconds);
     }
 
     /**
@@ -230,29 +246,35 @@ public class SeckillInventoryInitializer implements ApplicationRunner {
     private void initializeSkuStock(Long activityId, Long skuId, Integer totalStock, 
                                      Integer totalSold, long expireSeconds) {
         try {
+            log.info("开始初始化SKU库存: activityId={}, skuId={}, stock={}, sold={}",
+                    activityId, skuId, totalStock, totalSold);
+            
             // 验证SKU是否存在
             ProductSku sku = productSkuRepository.findById(skuId).orElse(null);
             if (sku == null) {
-                log.warn("SKU不存在: activityId={}, skuId={}", activityId, skuId);
-                return;
+                log.error("SKU不存在，无法预热: activityId={}, skuId={}", activityId, skuId);
+                throw new RuntimeException("SKU不存在: " + skuId);
             }
 
             // 存储SKU库存
             String stockKey = SECKILL_SKU_STOCK_KEY_PREFIX + activityId + ":" + skuId;
             stringRedisTemplate.opsForValue().set(stockKey, String.valueOf(totalStock), 
                     expireSeconds, TimeUnit.SECONDS);
+            log.info("写入SKU库存: key={}, value={}", stockKey, totalStock);
 
             // 存储SKU已售数量
             String soldKey = SECKILL_SKU_SOLD_KEY_PREFIX + activityId + ":" + skuId;
             stringRedisTemplate.opsForValue().set(soldKey, String.valueOf(totalSold), 
                     expireSeconds, TimeUnit.SECONDS);
+            log.info("写入SKU已售: key={}, value={}", soldKey, totalSold);
 
-            log.debug("SKU库存初始化成功: activityId={}, skuId={}, stock={}, sold={}", 
+            log.info("SKU库存初始化成功: activityId={}, skuId={}, stock={}, sold={}", 
                     activityId, skuId, totalStock, totalSold);
 
         } catch (Exception e) {
             log.error("SKU库存初始化失败: activityId={}, skuId={}, error={}", 
                     activityId, skuId, e.getMessage(), e);
+            throw e; // 重新抛出异常，让调用方知道失败了
         }
     }
 

@@ -13,14 +13,31 @@ import org.springframework.data.domain.Page;
  */
 public interface OrderService {
 
+
+    /**
+     * @param dto
+     * @return 订单信息
+     */
+    OrderVO checkOrder(CreateOrderDTO dto);
+
     /**
      * 创建订单
      *
      * @param userId        用户ID
      * @param createOrderDTO 创建订单DTO
-     * @return 订单信息
      */
-    OrderVO createOrder(String userId, CreateOrderDTO createOrderDTO);
+    void createOrder(String userId, CreateOrderDTO createOrderDTO);
+
+    /**
+     * 秒杀订单创建（异步）
+     *
+     * @param userId 用户ID
+     * @param activityId 活动ID
+     * @param skuId SKU ID
+     * @param createOrderDTO 创建订单DTO
+     * @return 订单信息（订单创建中）
+     */
+    OrderVO createSeckillOrder(String userId, Long activityId, Long skuId, CreateOrderDTO createOrderDTO);
 
     /**
      * 获取订单列表（用户端）

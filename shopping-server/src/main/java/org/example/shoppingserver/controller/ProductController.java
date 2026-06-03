@@ -12,6 +12,7 @@ import org.example.shoppingserver.model.entity.common.Category;
 import org.example.shoppingserver.model.vo.product.ProductDetailVO;
 import org.example.shoppingserver.model.vo.product.ProductVO;
 import org.example.shoppingserver.service.ProductService;
+import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -153,6 +154,7 @@ public class ProductController {
  * @param product 商品信息
  * @return 商品ID
  */
+ @RequireRole(value = {"ROLE_MERCHANT"})
  @PostMapping
  public ResponseResult<Long> createProduct(@Valid @RequestBody ProductCreateDTO product) {
  Long productId = productService.createProduct(product);
@@ -166,6 +168,7 @@ public class ProductController {
  * @param product 商品信息
  * @return 操作结果
  */
+ @RequireRole(value = {"ROLE_MERCHANT"})
  @PutMapping("/{productId}")
  public ResponseResult<Void> updateProduct(
  @PathVariable Long productId,

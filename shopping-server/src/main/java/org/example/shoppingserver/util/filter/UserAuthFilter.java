@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.shoppingserver.util.annotation.IgnoreAuth;
 import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 public class UserAuthFilter extends OncePerRequestFilter {
 
     @Autowired
+    @Qualifier("requestMappingHandlerMapping")
     private RequestMappingHandlerMapping handlerMapping;
 
     @Override

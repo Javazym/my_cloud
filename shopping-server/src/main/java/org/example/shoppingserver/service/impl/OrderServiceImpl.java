@@ -1,7 +1,9 @@
 package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.shoppingserver.common.MessageWrapper;
+import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.model.dto.order.*;
 import org.example.shoppingserver.model.entity.user.User;
 import org.example.shoppingserver.model.entity.user.UserAddress;
@@ -17,7 +19,10 @@ import org.example.shoppingserver.model.entity.product.ProductSku;
 import org.example.shoppingserver.mq.producer.OrderDelayProducer;
 import org.example.shoppingserver.mq.producer.OrderProducer;
 import org.example.shoppingserver.repository.*;
+import org.example.shoppingserver.service.MerchantMarketingService;
 import org.example.shoppingserver.service.OrderService;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
@@ -29,8 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -46,11 +53,13 @@ public class OrderServiceImpl implements OrderService {
     private final UserCouponRepository userCouponRepository;
     private final ProductRepository productRepository;
     private final UserAddressRepository userAddressRepository;
+    private final MerchantMarketingService merchantMarketingService;
+    private final RedissonClient redissonClient;
 
     // ====================== 1. 创建订单（完整支持你的 DTO）======================
 
     @Transactional(rollbackFor = Exception.class)
-    public void checkOrder(CreateOrderDTO dto) {
+    public OrderVO checkOrder(CreateOrderDTO dto) {
         for (CreateOrderDTO.OrderItemCreateDTO itemDto : dto.getItems()) {
             int stock = productSkuRepository.deductStock(itemDto.getSkuId(), 1);
             if (stock < 0) {
@@ -61,96 +70,168 @@ public class OrderServiceImpl implements OrderService {
                         .data(dto)
                         .targetService("order-service")
                 .build());
+        return convertToVO(getOrder(UserHolder.getCurrentUserId(), dto));
     }
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public OrderVO createOrder(String userId, CreateOrderDTO dto) {
-        User user = new User();
-        user.setId(userId);
-
-        Merchant merchant = new Merchant();
-        merchant.setId(dto.getMerchantId());
-
-        // 1. 构建订单
-        Order order = new Order();
-        order.setOrderNo(generateOrderNo());
-        order.setUser(user);
-        order.setMerchant(merchant);
-        order.setRemark(dto.getRemark());
-        order.setStatus(OrderStatus.PENDING_PAYMENT);
-        
-        // 查询并设置收货地址
-        UserAddress address = null;
-        if (dto.getAddressId() != null) {
-            address = userAddressRepository.findByUserIdAndId(userId, dto.getAddressId());
-        }
-        
-        // 如果没有指定地址，使用默认地址
-        if (address == null) {
-            address = userAddressRepository.findByUserIdAndIsDefault(userId, 1)
-                    .orElseThrow(() -> new RuntimeException("请添加收货地址"));
-        }
-        
-        order.setReceiverName(address.getReceiverName());
-        order.setReceiverPhone(address.getReceiverPhone());
-        order.setReceiverAddress(address.getFullAddress());
-        // 2. 添加商品
-        for (CreateOrderDTO.OrderItemCreateDTO itemDto : dto.getItems()) {
-            OrderItem item = new OrderItem();
-
-            // 查询商品信息（快照）
-            Product product = productRepository.findById(itemDto.getProductId())
-                    .orElseThrow(() -> new RuntimeException("商品不存在: " + itemDto.getProductId()));
-            
-            // 查询SKU信息（如果有）
-            ProductSku sku = null;
-            if (itemDto.getSkuId() != null) {
-                sku = productSkuRepository.findById(itemDto.getSkuId())
-                        .orElseThrow(() -> new RuntimeException("SKU不存在: " + itemDto.getSkuId()));
-            }
-
-            item.setProduct(product);
-            item.setSku(sku);
-            item.setProductName(product.getName());
-            item.setProductImage(product.getImage());
-            
-            // 设置价格：优先使用SKU价格，否则使用商品价格
-            BigDecimal price = sku != null ? sku.getPrice() : product.getPrice();
-            item.setProductPrice(price);
-            item.setQuantity(itemDto.getQuantity());
-            
-            // 计算总价
-            item.calculateTotalPrice();
-            
-            item.setOrderNo(order.getOrderNo());
-            item.setReviewStatus(0);
-
-            order.addItem(item);
-        }
-
-        // 3. 计算订单总额
-        order.recalculateTotal();
-        
-        // 4. 处理优惠券（在计算总额后）
-        if (dto.getCouponId() != null) {
-            UserCoupon coupon = userCouponRepository.findById(dto.getCouponId()).orElse(null);
-            if (coupon != null && coupon.getStatus() == 0 && coupon.isAvailable()) {
-                // 计算优惠金额
-                BigDecimal discountAmount = coupon.calculateDiscount(order.getTotalAmount());
-                order.setCouponAmount(discountAmount);
-                
-                // 更新优惠券状态
-                coupon.setStatus(1);
-                coupon.setUseTime(LocalDateTime.now());
-                coupon.setOrder(order);
-                
-                // 重新计算实付金额
-                order.recalculateTotal();
-            }
-        }
+    public void createOrder(String userId, CreateOrderDTO dto) {
+        Order order = getOrder(userId, dto);
         Order savedOrder = orderRepository.save(order);
         orderDelayProducer.sendOrderTimeoutMessage(order.getId());
-        return convertToVO(savedOrder);
+    }
+
+    private Order getOrder(String userId, CreateOrderDTO dto) {
+            User user = new User();
+            user.setId(userId);
+            Merchant merchant = new Merchant();
+            merchant.setId(dto.getMerchantId());
+
+            // 1. 构建订单
+            Order order = new Order();
+            order.setOrderNo(generateOrderNo());
+            order.setUser(user);
+            order.setMerchant(merchant);
+            order.setRemark(dto.getRemark());
+            order.setStatus(OrderStatus.PENDING_PAYMENT);
+
+            // 查询并设置收货地址
+            UserAddress address = null;
+            if (dto.getAddressId() != null) {
+                address = userAddressRepository.findByUserIdAndId(userId, dto.getAddressId());
+            }
+
+            // 如果没有指定地址，使用默认地址
+            if (address == null) {
+                address = userAddressRepository.findByUserIdAndIsDefault(userId, 1)
+                        .orElseThrow(() -> new RuntimeException("请添加收货地址"));
+            }
+
+            order.setReceiverName(address.getReceiverName());
+            order.setReceiverPhone(address.getReceiverPhone());
+            order.setReceiverAddress(address.getFullAddress());
+            // 2. 添加商品
+            for (CreateOrderDTO.OrderItemCreateDTO itemDto : dto.getItems()) {
+                OrderItem item = new OrderItem();
+
+                // 查询商品信息（快照）
+                Product product = productRepository.findById(itemDto.getProductId())
+                        .orElseThrow(() -> new RuntimeException("商品不存在: " + itemDto.getProductId()));
+
+                // 查询SKU信息（如果有）
+                ProductSku sku = null;
+                if (itemDto.getSkuId() != null) {
+                    sku = productSkuRepository.findById(itemDto.getSkuId())
+                            .orElseThrow(() -> new RuntimeException("SKU不存在: " + itemDto.getSkuId()));
+                }
+
+                item.setProduct(product);
+                item.setSku(sku);
+                item.setProductName(product.getName());
+                item.setProductImage(product.getImage());
+
+                // 设置价格：优先使用SKU价格，否则使用商品价格
+                BigDecimal price = sku != null ? sku.getPrice() : product.getPrice();
+                item.setProductPrice(price);
+                item.setQuantity(itemDto.getQuantity());
+
+                // 计算总价
+                item.calculateTotalPrice();
+
+                item.setOrderNo(order.getOrderNo());
+                item.setReviewStatus(0);
+
+                order.addItem(item);
+            }
+
+            // 3. 计算订单总额
+            order.recalculateTotal();
+
+            // 4. 处理优惠券（在计算总额后）
+            if (dto.getCouponId() != null) {
+                UserCoupon coupon = userCouponRepository.findById(dto.getCouponId()).orElse(null);
+                if (coupon != null && coupon.getStatus() == 0 && coupon.isAvailable()) {
+                    // 计算优惠金额
+                    BigDecimal discountAmount = coupon.calculateDiscount(order.getTotalAmount());
+                    order.setCouponAmount(discountAmount);
+
+                    // 更新优惠券状态
+                    coupon.setStatus(1);
+                    coupon.setUseTime(LocalDateTime.now());
+                    coupon.setOrder(order);
+
+                    // 重新计算实付金额
+                    order.recalculateTotal();
+                }
+            }
+            return order;
+    }
+
+    /**
+     * 秒杀订单创建（异步高性能版）
+     */
+    @Override
+    public OrderVO createSeckillOrder(String userId, Long activityId, Long skuId, CreateOrderDTO dto) {
+        // 构建分布式锁的key：秒杀活动 + 用户ID，防止同一用户重复提交
+        String lockKey = "seckill:lock:" + activityId + ":" + userId;
+        RLock lock = redissonClient.getLock(lockKey);
+        
+        try {
+            // 尝试获取锁，最多等待1秒，锁自动释放时间为5秒（缩短锁时间）
+            boolean isLocked = lock.tryLock(1, 5, TimeUnit.SECONDS);
+            
+            if (!isLocked) {
+                log.warn("秒杀请求过于频繁，请稍后再试: userId={}, activityId={}", userId, activityId);
+                throw new RuntimeException("请求过于频繁，请稍后再试");
+            }
+            
+            log.info("开始处理秒杀请求: userId={}, activityId={}, skuId={}", 
+                    userId, activityId, skuId);
+            
+            // 1. 扣减秒杀库存（快速失败）
+            boolean isSuccess = merchantMarketingService.seckillProductWithSku(userId, activityId, skuId);
+            
+            if (!isSuccess) {
+                throw new RuntimeException("秒杀活动已结束");
+            }
+            
+            // 2. 自动设置默认地址（如果未指定）
+            if (dto.getAddressId() == null) {
+                UserAddress defaultAddress = userAddressRepository.findByUserIdAndIsDefault(userId, 1)
+                        .orElseThrow(() -> new RuntimeException("请添加收货地址"));
+                dto.setAddressId(defaultAddress.getId());
+                log.info("秒杀订单使用默认地址: userId={}, addressId={}", userId, defaultAddress.getId());
+            }
+            
+            // 3. 秒杀成功，发送MQ异步创建订单（不阻塞用户）
+            // 将 userId 放入 DTO 中传递给消费者
+            dto.setUserId(userId);
+            orderProducer.sendCreateOrderMessage(MessageWrapper.<CreateOrderDTO>builder()
+                    .data(dto)
+                    .targetService("order-service")
+                    .build());
+            
+            log.info("秒杀成功，订单创建消息已发送: userId={}, activityId={}, skuId={}", 
+                    userId, activityId, skuId);
+            return convertToVO(getOrder(userId, dto));
+            
+        } catch (InterruptedException e) {
+            log.error("获取秒杀锁被中断: userId={}, activityId={}", userId, activityId, e);
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("秒杀请求被中断，请重试");
+        } catch (RuntimeException e) {
+            // 运行时异常直接抛出
+            throw e;
+        } catch (Exception e) {
+            log.error("秒杀处理失败: userId={}, activityId={}, error={}", 
+                    userId, activityId, e.getMessage(), e);
+            throw new RuntimeException("秒杀失败: " + e.getMessage());
+        } finally {
+            // 释放锁（只释放当前线程持有的锁）
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+                log.debug("释放秒杀锁: userId={}, activityId={}", userId, activityId);
+            }
+        }
     }
 
     // ====================== 2. 获取订单列表 ======================

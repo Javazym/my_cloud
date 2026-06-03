@@ -7,6 +7,7 @@ import org.example.shoppingserver.model.vo.finance.FinanceDataVO;
 import org.example.shoppingserver.model.dto.finance.WithdrawDTO;
 import org.example.shoppingserver.model.vo.finance.WithdrawRecordVO;
 import org.example.shoppingserver.service.FinanceService;
+import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.data.domain.Page;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/finance")
 @RequiredArgsConstructor
+@RequireRole(value = {"ROLE_MERCHANT"})
 public class FinanceController {
 
     private final FinanceService financeService;

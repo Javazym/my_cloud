@@ -6,6 +6,7 @@ import org.example.shoppingserver.common.result.ResponseResult;
 import org.example.shoppingserver.model.dto.product.CategoryDTO;
 import org.example.shoppingserver.model.vo.product.CategoryVO;
 import org.example.shoppingserver.service.CategoryService;
+import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -61,6 +62,7 @@ public class CategoryController {
      * @param dto 分类信息
      * @return 分类ID
      */
+    @RequireRole(value = {"ROLE_ADMIN"})
     @PostMapping
     public ResponseResult<Long> createCategory(@Valid @RequestBody CategoryDTO dto) {
         Long categoryId = categoryService.createCategory(dto);
@@ -74,6 +76,7 @@ public class CategoryController {
      * @param dto 分类信息
      * @return 操作结果
      */
+    @RequireRole(value = {"ROLE_ADMIN"})
     @PutMapping("/{categoryId}")
     public ResponseResult<?> updateCategory(
             @PathVariable Long categoryId,
@@ -88,6 +91,7 @@ public class CategoryController {
      * @param categoryId 分类ID
      * @return 操作结果
      */
+    @RequireRole(value = {"ROLE_ADMIN"})
     @DeleteMapping("/{categoryId}")
     public ResponseResult<?> deleteCategory(@PathVariable Long categoryId) {
         categoryService.deleteCategory(categoryId);
@@ -101,6 +105,7 @@ public class CategoryController {
      * @param status 状态(0-禁用, 1-启用)
      * @return 操作结果
      */
+    @RequireRole(value = {"ROLE_ADMIN"})
     @PutMapping("/{categoryId}/status")
     public ResponseResult<?> updateCategoryStatus(
             @PathVariable Long categoryId,
@@ -116,6 +121,7 @@ public class CategoryController {
      * @param sort 排序值
      * @return 操作结果
      */
+    @RequireRole(value = {"ROLE_ADMIN"})
     @PutMapping("/{categoryId}/sort")
     public ResponseResult<?> updateCategorySort(
             @PathVariable Long categoryId,

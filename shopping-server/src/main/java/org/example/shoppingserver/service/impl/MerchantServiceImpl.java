@@ -12,6 +12,7 @@ import org.example.shoppingserver.model.vo.merchant.MerchantVO;
 import org.example.shoppingserver.repository.MerchantApplicationRepository;
 import org.example.shoppingserver.repository.MerchantRepository;
 import org.example.shoppingserver.service.MerchantService;
+import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;

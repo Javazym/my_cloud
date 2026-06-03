@@ -36,8 +36,19 @@ public class SeckillStockSyncTask {
     private static final String SECKILL_SOLD_KEY_PREFIX = "seckill:sold:";
 
     /**
-     * 定时同步库存到数据库
-     * 每30秒执行一次
+     * Redis Key前缀：秒杀SKU库存
+     */
+    private static final String SECKILL_SKU_STOCK_KEY_PREFIX = "seckill:sku:stock:";
+
+    /**
+     * Redis Key前缀：秒杀SKU已售数量
+     */
+    private static final String SECKILL_SKU_SOLD_KEY_PREFIX = "seckill:sku:sold:";
+
+    /**
+     * 定时同步已售数量到数据库
+     * 每分钟执行一次
+     * 注意：只同步已售数量的增量，库存总量不变
      */
     @Scheduled(fixedRate = 60000)
     public void syncStockToDatabase() {
@@ -45,9 +56,7 @@ public class SeckillStockSyncTask {
         
         try {
             // 获取所有进行中的秒杀活动
-            List<SeckillActivity> activities = seckillActivityRepository.findAll((root, query, cb) -> {
-                return root.get("status").in(0, 1); // 未开始或进行中
-            });
+            List<SeckillActivity> activities = seckillActivityRepository.findByStatusIn(List.of(0, 1));
 
             if (activities == null || activities.isEmpty()) {
                 log.debug("没有需要同步的秒杀活动");
@@ -60,7 +69,7 @@ public class SeckillStockSyncTask {
 
             for (SeckillActivity activity : activities) {
                 try {
-                    boolean synced = syncActivityStock(activity);
+                    boolean synced = syncActivitySoldCount(activity);
                     if (synced) {
                         successCount++;
                     } else {
@@ -68,7 +77,7 @@ public class SeckillStockSyncTask {
                     }
                 } catch (Exception e) {
                     failCount++;
-                    log.error("同步活动库存失败: activityId={}, name={}, error={}", 
+                    log.error("同步活动已售数量失败: activityId={}, name={}, error={}", 
                             activity.getId(), activity.getName(), e.getMessage(), e);
                 }
             }
@@ -82,78 +91,128 @@ public class SeckillStockSyncTask {
     }
 
     /**
-     * 同步单个活动的库存
+     * 同步单个活动的已售数量
+     * 逻辑：从Redis获取已售数量，更新到数据库
      *
      * @param activity 秒杀活动
      * @return 是否同步成功
      */
-    private boolean syncActivityStock(SeckillActivity activity) {
+    private boolean syncActivitySoldCount(SeckillActivity activity) {
         Long activityId = activity.getId();
         
-        // 从Redis获取库存和已售数量
-        String stockKey = SECKILL_STOCK_KEY_PREFIX + activityId;
+        // 从Redis获取已售数量
         String soldKey = SECKILL_SOLD_KEY_PREFIX + activityId;
-        
-        String redisStockStr = stringRedisTemplate.opsForValue().get(stockKey);
         String redisSoldStr = stringRedisTemplate.opsForValue().get(soldKey);
         
         // 如果Redis中没有数据，跳过
-        if (redisStockStr == null || redisSoldStr == null) {
-            log.debug("Redis中无库存数据，跳过同步: activityId={}", activityId);
+        if (redisSoldStr == null) {
+            log.debug("Redis中无已售数据，跳过同步: activityId={}", activityId);
             return false;
         }
         
         try {
-            int redisStock = Integer.parseInt(redisStockStr);
             int redisSold = Integer.parseInt(redisSoldStr);
             
             // 获取数据库中的当前值
-            int dbStock = activity.getStock();
             int dbSold = activity.getSoldCount();
             
             // 检查是否有变化
-            if (redisStock == dbStock && redisSold == dbSold) {
-                log.debug("库存无变化，跳过同步: activityId={}", activityId);
+            if (redisSold == dbSold) {
+                log.debug("已售数量无变化，跳过同步: activityId={}", activityId);
                 return false;
             }
             
             // 验证数据合理性
-            if (redisStock < 0 || redisSold < 0) {
-                log.warn("Redis库存数据异常: activityId={}, stock={}, sold={}", 
-                        activityId, redisStock, redisSold);
+            if (redisSold < 0) {
+                log.warn("Redis已售数据异常: activityId={}, sold={}", activityId, redisSold);
                 return false;
             }
             
-            // 同步到数据库
-            activity.setStock(redisStock);
+            // 同步到数据库：只更新已售数量，库存总量不变
+            // 实际库存 = 初始总库存 - 已售数量
             activity.setSoldCount(redisSold);
+            activity.setStock(activity.getStock()); // 保持初始库存不变
             seckillActivityRepository.save(activity);
             
-            log.info("库存同步成功: activityId={}, DB库存:{}→{}, DB已售:{}→{}", 
-                    activityId, dbStock, redisStock, dbSold, redisSold);
+            log.info("已售数量同步成功: activityId={}, DB已售:{}→{}, 当前库存:{}", 
+                    activityId, dbSold, redisSold, activity.getStock() - redisSold);
             
             return true;
             
         } catch (NumberFormatException e) {
-            log.error("Redis库存数据格式错误: activityId={}, stockStr={}, soldStr={}", 
-                    activityId, redisStockStr, redisSoldStr, e);
+            log.error("Redis已售数据格式错误: activityId={}, soldStr={}", 
+                    activityId, redisSoldStr, e);
             return false;
+        }
+    }
+
+    /**
+     * 同步SKU级别的已售数量
+     */
+    @Scheduled(fixedRate = 60000)
+    public void syncSkuStockToDatabase() {
+        log.debug("开始执行SKU库存同步任务");
+        
+        try {
+            // 查找所有带SKU的秒杀活动
+            List<SeckillActivity> activities = seckillActivityRepository.findByStatusIn(List.of(0, 1));
+
+            if (activities == null || activities.isEmpty()) {
+                return;
+            }
+
+            int syncCount = 0;
+            for (SeckillActivity activity : activities) {
+                if (activity.getSkuId() != null) {
+                    try {
+                        syncSkuSoldCount(activity.getId(), activity.getSkuId());
+                        syncCount++;
+                    } catch (Exception e) {
+                        log.error("同步SKU已售数量失败: activityId={}, skuId={}, error={}",
+                                activity.getId(), activity.getSkuId(), e.getMessage(), e);
+                    }
+                }
+            }
+
+            log.debug("SKU库存同步完成，同步数量: {}", syncCount);
+
+        } catch (Exception e) {
+            log.error("SKU库存同步任务异常", e);
+        }
+    }
+
+    /**
+     * 同步单个SKU的已售数量
+     */
+    private void syncSkuSoldCount(Long activityId, Long skuId) {
+        String soldKey = SECKILL_SKU_SOLD_KEY_PREFIX + activityId + ":" + skuId;
+        String redisSoldStr = stringRedisTemplate.opsForValue().get(soldKey);
+        
+        if (redisSoldStr == null) {
+            return;
+        }
+        
+        try {
+            int redisSold = Integer.parseInt(redisSoldStr);
+            log.debug("SKU已售数量: activityId={}, skuId={}, sold={}", activityId, skuId, redisSold);
+            // SKU级别的同步主要用于监控和统计，数据库层面以活动级别为准
+        } catch (NumberFormatException e) {
+            log.error("SKU已售数据格式错误: activityId={}, skuId={}, soldStr={}",
+                    activityId, skuId, redisSoldStr, e);
         }
     }
 
     /**
      * 定时校验库存一致性
      * 每5分钟执行一次
-     * 检查Redis库存之和是否与活动总库存一致
+     * 检查Redis中的已售数量是否与数据库一致
      */
     @Scheduled(fixedRate = 300000)
     public void validateStockConsistency() {
         log.debug("开始执行库存一致性校验");
         
         try {
-            List<SeckillActivity> activities = seckillActivityRepository.findAll((root, query, cb) -> {
-                return root.get("status").in(0, 1);
-            });
+            List<SeckillActivity> activities = seckillActivityRepository.findByStatusIn(List.of(0, 1));
 
             if (activities == null || activities.isEmpty()) {
                 return;
@@ -162,16 +221,16 @@ public class SeckillStockSyncTask {
             int inconsistentCount = 0;
 
             for (SeckillActivity activity : activities) {
-                boolean consistent = validateActivityStock(activity);
+                boolean consistent = validateActivityStockConsistency(activity);
                 if (!consistent) {
                     inconsistentCount++;
                 }
             }
 
             if (inconsistentCount > 0) {
-                log.warn("发现 {} 个活动库存不一致，建议手动检查", inconsistentCount);
+                log.warn("发现 {} 个活动库存数据不一致，建议检查", inconsistentCount);
             } else {
-                log.debug("所有活动库存一致");
+                log.debug("所有活动库存数据一致");
             }
 
         } catch (Exception e) {
@@ -181,67 +240,56 @@ public class SeckillStockSyncTask {
 
     /**
      * 校验单个活动的库存一致性
+     * 比较Redis和数据库中的已售数量是否一致
      *
      * @param activity 秒杀活动
      * @return 是否一致
      */
-    private boolean validateActivityStock(SeckillActivity activity) {
+    private boolean validateActivityStockConsistency(SeckillActivity activity) {
         Long activityId = activity.getId();
         
-        // 获取活动总库存
-        String totalStockKey = SECKILL_STOCK_KEY_PREFIX + activityId;
-        String totalStockStr = stringRedisTemplate.opsForValue().get(totalStockKey);
+        // 获取Redis中的已售数量
+        String soldKey = SECKILL_SOLD_KEY_PREFIX + activityId;
+        String redisSoldStr = stringRedisTemplate.opsForValue().get(soldKey);
         
-        if (totalStockStr == null) {
-            return true; // Redis中无数据，无法校验
+        if (redisSoldStr == null) {
+            // Redis中无数据，如果数据库中已售数量大于0，说明不一致
+            if (activity.getSoldCount() > 0) {
+                log.warn("活动库存数据不一致: activityId={}, Redis无数据, DB已售={}", 
+                        activityId, activity.getSoldCount());
+                return false;
+            }
+            return true;
         }
         
-        int redisTotalStock = Integer.parseInt(totalStockStr);
-        int dbTotalStock = activity.getStock();
-        
-        // 检查活动级别库存是否一致
-        if (redisTotalStock != dbTotalStock) {
-            log.warn("活动库存不一致: activityId={}, Redis={}, DB={}", 
-                    activityId, redisTotalStock, dbTotalStock);
+        try {
+            int redisSold = Integer.parseInt(redisSoldStr);
+            int dbSold = activity.getSoldCount();
+            
+            // 比较已售数量是否一致
+            if (redisSold != dbSold) {
+                log.warn("活动已售数量不一致: activityId={}, Redis已售={}, DB已售={}, 差异={}", 
+                        activityId, redisSold, dbSold, Math.abs(redisSold - dbSold));
+                return false;
+            }
+            
+            // 检查库存计算是否正确
+            int availableStock = activity.getStock() - dbSold;
+            if (availableStock < 0) {
+                log.error("活动库存计算错误: activityId={}, 总库存={}, 已售={}, 可用库存={}",
+                        activityId, activity.getStock(), dbSold, availableStock);
+                return false;
+            }
+            
+            log.debug("活动库存校验通过: activityId={}, 总库存={}, 已售={}, 可用={}",
+                    activityId, activity.getStock(), dbSold, availableStock);
+            return true;
+            
+        } catch (NumberFormatException e) {
+            log.error("Redis已售数据格式错误: activityId={}, soldStr={}",
+                    activityId, redisSoldStr, e);
             return false;
         }
-        
-        // 如果活动指定了SKU，检查SKU库存之和
-        if (activity.getSkuId() != null) {
-            String skuStockKey = "seckill:sku:stock:" + activityId + ":" + activity.getSkuId();
-            String skuStockStr = stringRedisTemplate.opsForValue().get(skuStockKey);
-            
-            if (skuStockStr != null) {
-                int skuStock = Integer.parseInt(skuStockStr);
-                if (skuStock != redisTotalStock) {
-                    log.warn("SKU库存与活动库存不一致: activityId={}, skuId={}, SKU库存={}, 活动库存={}", 
-                            activityId, activity.getSkuId(), skuStock, redisTotalStock);
-                    return false;
-                }
-            }
-        } else {
-            // 如果活动未指定SKU，检查所有SKU库存之和
-            String pattern = "seckill:sku:stock:" + activityId + ":*";
-            Set<String> skuKeys = stringRedisTemplate.keys(pattern);
-            
-            if (skuKeys != null && !skuKeys.isEmpty()) {
-                int skuStockSum = 0;
-                for (String key : skuKeys) {
-                    String stockStr = stringRedisTemplate.opsForValue().get(key);
-                    if (stockStr != null) {
-                        skuStockSum += Integer.parseInt(stockStr);
-                    }
-                }
-                
-                if (skuStockSum != redisTotalStock) {
-                    log.warn("SKU库存总和与活动库存不一致: activityId={}, SKU总和={}, 活动库存={}", 
-                            activityId, skuStockSum, redisTotalStock);
-                    return false;
-                }
-            }
-        }
-        
-        return true;
     }
 
     /**

@@ -10,6 +10,7 @@ import org.example.shoppingserver.model.vo.merchant.MerchantVO;
 import org.example.shoppingserver.model.vo.merchant.MerchantApplicationVO;
 import org.example.shoppingserver.model.vo.merchant.MerchantStatisticsVO;
 import org.example.shoppingserver.service.MerchantService;
+import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -36,6 +37,7 @@ public class MerchantController {
  /**
  * 获取商家信息
  */
+ @RequireRole(value = {"ROLE_MERCHANT"})
  @GetMapping()
  public ResponseResult<MerchantVO> getMerchantInfo() {
  MerchantVO merchant = merchantService.getMerchantInfo(UserHolder.getCurrentUserId());
@@ -45,6 +47,7 @@ public class MerchantController {
  /**
  * 获取商家入驻信息
  */
+ @RequireRole(value = {"ROLE_MERCHANT"})
  @GetMapping("/apply")
  public ResponseResult<MerchantApplicationVO> getApplyInfo() {
  return ResponseResult.success(merchantService.
@@ -54,6 +57,7 @@ public class MerchantController {
  /**
  * 根据用户ID获取商家信息
  */
+ @RequireRole(value = {"ROLE_MERCHANT"})
  @GetMapping("/by-user")
  public ResponseResult<MerchantVO> getMerchantByUserId() {
  MerchantVO merchant = merchantService.getMerchantByUserId(UserHolder.getCurrentUserId());
@@ -63,6 +67,7 @@ public class MerchantController {
  /**
  * 更新商家信息
  */
+ @RequireRole(value = {"ROLE_MERCHANT"})
  @PutMapping("/{merchantId}")
  public ResponseResult<MerchantVO> updateMerchantInfo(
  @RequestBody MerchantDTO merchantDTO) {
@@ -73,6 +78,7 @@ public class MerchantController {
  /**
  * 获取商家统计数据
  */
+ @RequireRole(value = {"ROLE_MERCHANT"})
  @GetMapping("/{merchantId}/statistics")
  public ResponseResult<MerchantStatisticsVO> getStatistics() {
  MerchantStatisticsVO statistics = merchantService.getStatistics(UserHolder.getCurrentUserId());

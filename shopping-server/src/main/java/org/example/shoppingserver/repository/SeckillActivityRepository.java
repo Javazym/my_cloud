@@ -31,6 +31,11 @@ public interface SeckillActivityRepository extends JpaRepository<SeckillActivity
     List<SeckillActivity> findByStatusAndStartTimeBeforeAndEndTimeAfter(Integer status, java.time.LocalDateTime now, java.time.LocalDateTime now2);
 
     /**
+     * 根据状态列表查询活动
+     */
+    List<SeckillActivity> findByStatusIn(List<Integer> statuses);
+
+    /**
      * 根据商品ID查询
      */
     List<SeckillActivity> findByProduct_Id(Long productId);

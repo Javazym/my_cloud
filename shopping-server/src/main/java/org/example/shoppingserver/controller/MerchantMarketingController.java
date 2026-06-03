@@ -15,6 +15,7 @@ import org.example.shoppingserver.model.vo.marketing.DiscountActivityVO;
 import org.example.shoppingserver.model.vo.marketing.SeckillActivityVO;
 import org.example.shoppingserver.model.vo.coupon.CouponVO;
 import org.example.shoppingserver.service.MerchantMarketingService;
+import org.example.shoppingserver.util.annotation.RequireRole;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/merchant/marketing")
 @RequiredArgsConstructor
+@RequireRole(value = {"ROLE_MERCHANT"})
 public class MerchantMarketingController {
 
     private final MerchantMarketingService merchantMarketingService;

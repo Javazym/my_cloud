@@ -12,6 +12,7 @@
     <packaging>pom</packaging>
     <name>my-cloud</name>
     <modules>
+        <module>common-api</module>
         <module>my-gateway</module>
         <module>auth-server</module>
         <module>shopping-server</module>

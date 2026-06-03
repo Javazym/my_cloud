@@ -2,23 +2,22 @@ package org.example.agentserver.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.example.agentserver.model.dto.ChatRequest;
-import org.example.agentserver.model.dto.DescriptionReviewRequest;
-import org.example.agentserver.model.dto.ImageReviewRequest;
-import org.example.agentserver.model.dto.ProductReviewRequest;
+import org.example.agentserver.model.dto.BatchReviewRequest;
+import org.example.agentserver.model.dto.ReviewRequest;
 import org.example.agentserver.service.ApiProxyService;
+import org.example.agentserver.service.ProductReviewService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/ai")
 @RequiredArgsConstructor
 public class ProxyController {
 
     private final ApiProxyService proxyService;
+    private final ProductReviewService productReviewService;
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> health() {
@@ -27,31 +26,29 @@ public class ProxyController {
 
     @PostMapping("/review/product")
     public ResponseEntity<Map<String, Object>> reviewProduct(
-            @Valid @RequestBody ProductReviewRequest request) {
-        return ResponseEntity.ok(proxyService.post("/api/review/product", request));
+            @Valid @RequestBody ReviewRequest request) {
+        Map<String, Object> result = productReviewService.reviewProduct(request.getProductId());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/review/batch")
     public ResponseEntity<Map<String, Object>> reviewBatch(
-            @RequestBody Map<String, List<ProductReviewRequest>> request) {
-        return ResponseEntity.ok(proxyService.post("/api/review/batch", request));
+            @Valid @RequestBody BatchReviewRequest request) {
+        Map<String, Object> result = productReviewService.reviewBatch(request.getProductIds());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/review/description")
     public ResponseEntity<Map<String, Object>> reviewDescription(
-            @Valid @RequestBody DescriptionReviewRequest request) {
-        return ResponseEntity.ok(proxyService.post("/api/review/description", request));
+            @Valid @RequestBody ReviewRequest request) {
+        Map<String, Object> result = productReviewService.reviewDescription(request.getProductId());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/review/images")
     public ResponseEntity<Map<String, Object>> reviewImages(
-            @Valid @RequestBody ImageReviewRequest request) {
-        return ResponseEntity.ok(proxyService.post("/api/review/images", request));
-    }
-
-    @PostMapping("/chat")
-    public ResponseEntity<Map<String, Object>> chat(
-            @Valid @RequestBody ChatRequest request) {
-        return ResponseEntity.ok(proxyService.post("/api/chat", request));
+            @Valid @RequestBody ReviewRequest request) {
+        Map<String, Object> result = productReviewService.reviewImages(request.getProductId());
+        return ResponseEntity.ok(result);
     }
 }

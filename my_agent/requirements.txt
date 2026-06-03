@@ -1,0 +1,11 @@
+langchain
+langchain-openai
+langchain-anthropic
+openai
+pillow 
+python-dotenv 
+requests
+easyocr
+pydantic-settings
+fastapi
+uvicorn

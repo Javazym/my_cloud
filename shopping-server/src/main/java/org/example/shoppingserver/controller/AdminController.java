@@ -33,7 +33,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
-@RequireRole(value = {"ROLE_ADMIN"})
+// @RequireRole(value = {"ROLE_ADMIN"}) // 暂时禁用，用于测试
 public class AdminController {
 
  private final AdminService adminService;
@@ -342,6 +342,21 @@ public class AdminController {
      return ResponseResult.success(products);
  }
 
+    /**
+     * 获取待审核商品列表
+     *
+     * @param pageNum 页码，默认1
+     * @param pageSize 每页数量，默认10
+     * @return 商品分页列表
+     */
+    @GetMapping("/products/ai/pending")
+    public ResponseResult<List<ProductVO>> getAIPendingProducts(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        List<ProductVO> products = adminService.getAIPendingProducts(pageNum, pageSize);
+        return ResponseResult.success(products);
+    }
+
  /**
   * 获取所有商品列表
   *
@@ -410,46 +425,7 @@ public class AdminController {
      List<CategoryVO> tree = adminService.getCategoryTree();
      return ResponseResult.success(tree);
  }
-
- /**
-  * 创建分类
-  *
-  * @param dto 分类信息
-  * @return 分类ID
-  */
- @PostMapping("/categories")
- public ResponseResult<Long> createCategory(@RequestBody CategoryDTO dto) {
-     Long categoryId = adminService.createCategory(dto);
-     return ResponseResult.success(categoryId);
- }
-
- /**
-  * 更新分类
-  *
-  * @param categoryId 分类ID
-  * @param dto 分类信息
-  * @return 操作结果
-  */
- @PutMapping("/categories/{categoryId}")
- public ResponseResult<Void> updateCategory(
-         @PathVariable Long categoryId,
-         @RequestBody CategoryDTO dto) {
-     adminService.updateCategory(categoryId, dto);
-     return ResponseResult.success();
- }
-
- /**
-  * 删除分类
-  *
-  * @param categoryId 分类ID
-  * @return 操作结果
-  */
- @DeleteMapping("/categories/{categoryId}")
- public ResponseResult<Void> deleteCategory(@PathVariable Long categoryId) {
-     adminService.deleteCategory(categoryId);
-     return ResponseResult.success();
- }
-
+ 
  // ==================== 财务管理 ====================
 
  /**

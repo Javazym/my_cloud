@@ -2,6 +2,7 @@ package org.example.shoppingserver.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.commonapi.dto.product.ProductSimpleVO;
 import org.example.shoppingserver.common.UserHolder;
 import org.example.shoppingserver.model.dto.merchant.MerchantAuditDTO;
 import org.example.shoppingserver.model.dto.product.CategoryDTO;
@@ -447,8 +448,42 @@ public class AdminServiceImpl implements AdminService {
     public Page<ProductVO> getPendingProducts(int pageNum, int pageSize) {
         // Product 实体暂无审核状态字段，返回所有下架商品
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
-        Page<Product> products = productRepository.findAll(pageable);
+        Page<Product> products = productRepository.findAllByAuditStatus(AuditStatus.PENDING, pageable);
         return products.map(this::convertToProductVO);
+    }
+
+    @Override
+    public List<ProductVO> getAIPendingProducts(int pageNum, int pageSize) {
+        // Product 实体暂无审核状态字段，返回所有下架商品
+        Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
+        List<Product> products = productRepository.findByAuditStatus(AuditStatus.PENDING, pageable);
+        return products.stream()
+                .map(this::convertToProductVO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取待审核商品列表（简化版）
+     * 用于微服务间调用，返回简化版商品信息
+     */
+    private ProductSimpleVO convertToProductSimpleVO(Product product) {
+        ProductSimpleVO vo = new ProductSimpleVO();
+        vo.setId(product.getId());
+        vo.setName(product.getName());
+        vo.setSubName(product.getSubName());
+        vo.setImage(product.getImage());
+        vo.setImages(product.getImages());
+        vo.setDescription(product.getDescription());
+        vo.setPrice(product.getPrice());
+        vo.setOriginalPrice(product.getOriginalPrice());
+        vo.setStock(product.getStock());
+        vo.setSoldCount(product.getSoldCount());
+        vo.setMerchantId(product.getMerchant() != null ? product.getMerchant().getId() : null);
+        vo.setCategoryId(product.getCategoryId());
+        vo.setPublishStatus(product.getPublishStatus());
+        vo.setAuditStatus(product.getAuditStatus() != null ? product.getAuditStatus().getCode() : null);
+        vo.setCreateTime(product.getCreatedAt());
+        return vo;
     }
 
     @Override
@@ -473,6 +508,7 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new RuntimeException("商品不存在"));
         
         // approved=true 则上架，否则下架
+        product.setAuditStatus(approved ? AuditStatus.APPROVED : AuditStatus.REJECTED);
         product.setPublishStatus(approved ? 1 : 0);
         productRepository.save(product);
         return true;

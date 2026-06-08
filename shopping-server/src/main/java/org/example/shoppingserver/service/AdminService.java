@@ -266,6 +266,9 @@ public interface AdminService {
      */
     Page<ProductVO> getPendingProducts(int pageNum, int pageSize);
 
+
+    List<ProductVO> getAIPendingProducts(int pageNum, int pageSize);
+
     /**
      * 获取所有商品列表
      *

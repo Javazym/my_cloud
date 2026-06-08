@@ -5,10 +5,17 @@ import lombok.RequiredArgsConstructor;
 import org.example.agentserver.model.dto.BatchReviewRequest;
 import org.example.agentserver.model.dto.ReviewRequest;
 import org.example.agentserver.service.ApiProxyService;
+import org.example.agentserver.service.PendingProductService;
 import org.example.agentserver.service.ProductReviewService;
+import org.example.commonapi.dto.product.ProductSimpleVO;
+import org.example.commonapi.dto.product.ProductVO;
+import org.example.commonapi.result.ApiResult;
+import org.example.commonapi.result.ResponseResult;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -18,6 +25,7 @@ public class ProxyController {
 
     private final ApiProxyService proxyService;
     private final ProductReviewService productReviewService;
+    private final PendingProductService pendingProductService;
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> health() {
@@ -50,5 +58,20 @@ public class ProxyController {
             @Valid @RequestBody ReviewRequest request) {
         Map<String, Object> result = productReviewService.reviewImages(request.getProductId());
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * 获取待审核商品列表
+     *
+     * @param pageNum  页码，从1开始
+     * @param pageSize 每页数量
+     * @return 待审核商品分页结果
+     */
+    @GetMapping("/products/pending")
+    public ResponseResult<List<ProductVO>> getPendingProducts(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        ResponseResult<List<ProductVO>> result = pendingProductService.getPendingProducts(pageNum, pageSize);
+        return result;
     }
 }

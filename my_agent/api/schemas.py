@@ -1,13 +1,16 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 from typing import List, Optional
 
 
 class PriceInfoSchema(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     price: Optional[float] = Field(default=None, description="当前售价")
     original_price: Optional[float] = Field(default=None, description="原始价格/划线价")
 
 
 class ActivityInfoSchema(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     has_activity: bool = Field(default=False, description="是否有活动")
     activity_type: Optional[int] = Field(default=None, description="活动类型：1-秒杀，2-满减")
     activity_id: Optional[int] = Field(default=None, description="活动ID")
@@ -19,6 +22,7 @@ class ActivityInfoSchema(BaseModel):
 
 
 class ReviewProductRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     name: str = Field(description="商品名称")
     sub_name: Optional[str] = Field(default=None, description="商品副标题")
     description: str = Field(description="商品描述文本")
@@ -54,10 +58,12 @@ class ReviewProductRequest(BaseModel):
 
 
 class BatchReviewRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     products: List[ReviewProductRequest] = Field(description="待审核的商品列表")
 
 
 class ReviewDescriptionRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     description: str = Field(description="商品描述文本")
     product_name: Optional[str] = Field(default=None, description="商品名称")
     price: Optional[float] = Field(default=None, description="商品售价")
@@ -68,10 +74,12 @@ class ReviewDescriptionRequest(BaseModel):
 
 
 class ReviewImagesRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     urls: List[str] = Field(description="商品图片URL列表")
 
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
     session_id: str = Field(description="会话ID（由客户端生成，如 UUID，同一用户请使用相同 ID）")
     message: str = Field(description="用户当前的提问")
 

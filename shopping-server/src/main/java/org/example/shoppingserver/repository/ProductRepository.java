@@ -1,6 +1,7 @@
 package org.example.shoppingserver.repository;
 
 
+import org.example.shoppingserver.model.entity.common.AuditStatus;
 import org.example.shoppingserver.model.entity.product.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -82,4 +83,12 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      */
     @Query("SELECT p FROM Product p WHERE (p.isHot = 1 OR p.isFeatured = 1) AND p.publishStatus = 1 ORDER BY p.soldCount DESC")
     List<Product> findRecommendedProducts(Pageable pageable);
+
+
+    /**
+     * 根据审核状态查询商品列表
+     */
+    Page<Product> findAllByAuditStatus(AuditStatus auditStatus, Pageable pageable);
+
+    List<Product> findByAuditStatus(AuditStatus auditStatus, Pageable pageable);
 }

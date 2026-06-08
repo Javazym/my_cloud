@@ -488,7 +488,7 @@ def review_product(
     # 审核图片
     images_review = None
     if image_urls:
-        images_review_raw = review_images(image_urls)
+        images_review_raw = review_images.invoke({"urls": image_urls})
         images_review_data = json.loads(images_review_raw)
         images_review = ImagesReviewOutput(
             overall_conclusion=images_review_data.get('overall_conclusion', '需人工复核'),
@@ -596,7 +596,7 @@ def batch_review_products(products_json: str) -> str:
 
     results = []
     for p in products:
-        single_result = json.loads(review_product(**_build_product_kwargs(p)))
+        single_result = json.loads(review_product.invoke(_build_product_kwargs(p)))
         results.append(SingleProductReviewOutput(**single_result))
 
     passed = sum(1 for r in results if r.conclusion == '通过')

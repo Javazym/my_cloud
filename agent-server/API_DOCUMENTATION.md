@@ -2,33 +2,37 @@
 
 ## 基本信息
 
-- **服务名称**: agent-server (AI 商品审核服务)
-- **基础路径**: `/api`
+- **服务名称**: `agent-server`（AI 商品审核服务）
 - **服务端口**: `8903`
-- **完整 Base URL**: `http://localhost:8903`
-- **技术栈**: Spring Boot + Python AI API 代理 + WebSocket
+- **Controller 基础路径**: `/ai`
+- **Nacos 注册名**: `agent-server`
+- **网关前缀**: `/agent-server`（通过网关访问需加此前缀）
+- **完整网关 URL**: `http://<gateway>/agent-server/ai/...`
+- **直连 URL**: `http://localhost:8903/ai/...`
 
 ---
 
 ## 目录
 
-1. [健康检查接口](#1-健康检查接口)
-2. [商品审核接口](#2-商品审核接口)
-   - [2.1 全量商品审核](#21-全量商品审核)
-   - [2.2 批量商品审核](#22-批量商品审核)
-   - [2.3 商品描述审核](#23-商品描述审核)
-   - [2.4 商品图片审核](#24-商品图片审核)
-3. [待审核商品查询](#3-待审核商品查询)
-4. [WebSocket 实时聊天接口](#4-websocket-实时聊天接口)
+1. [健康检查](#1-健康检查)
+2. [单商品全量审核](#2-单商品全量审核)
+3. [批量审核（同步）](#3-批量审核同步)
+4. [批量审核（流式 SSE）](#4-批量审核流式-sse)
+5. [描述审核](#5-描述审核)
+6. [图片审核](#6-图片审核)
+7. [待审核商品列表](#7-待审核商品列表)
+8. [WebSocket AI 对话](#8-websocket-ai-对话)
+9. [数据模型](#9-数据模型)
 
 ---
 
-## 1. 健康检查接口
+## 1. 健康检查
 
-### 接口信息
+检测 AI 审核服务是否正常运行。
 
-- **接口路径**: `GET /ai/health`
-- **说明**: 检查 AI 服务健康状态
+```
+GET /ai/health
+```
 
 ### 请求参数
 
@@ -38,697 +42,550 @@
 
 ```json
 {
-  "code": 200,
-  "message": "success",
-  "data": {
-    "status": "ok"
-  }
+  "status": "ok",
+  "service": "商品审核 API"
 }
 ```
 
 ---
 
-## 2. 商品审核接口
+## 2. 单商品全量审核
 
-### 2.1 全量商品审核
+完整审核单个商品（描述审核 + 图片审核 + 综合评价）。
 
-#### 接口信息
+```
+POST /ai/review/product
+Content-Type: application/json
 
-- **接口路径**: `POST /ai/review/product`
-- **说明**: 对单个商品进行全方位审核（包括商品信息、描述、图片等）
-
-#### 请求参数
-
-**Request Body** (`ReviewRequest`)
-
-| 字段名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| productId | Long | 是 | 商品 ID |
-
-**请求示例**:
-
-```json
 {
-  "productId": 123456
+  "productId": 1
 }
 ```
-
-#### 响应示例
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "conclusion": "通过",
-    "suggestion": "商品信息完整，描述清晰，图片合规",
-    "productScore": 95,
-    "descriptionScore": 90,
-    "imageScore": 95,
-    "details": {
-      "productInfo": {
-        "isComplete": true,
-        "isCompliant": true
-      },
-      "description": {
-        "quality": "high",
-        "issues": []
-      },
-      "images": {
-        "validCount": 5,
-        "invalidCount": 0,
-        "issues": []
-      }
-    }
-  }
-}
-```
-
-#### 响应字段说明
-
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| conclusion | String | 审核结论：通过/不通过/待审核 |
-| suggestion | String | 审核建议 |
-| productScore | Number | 商品信息评分 |
-| descriptionScore | Number | 描述质量评分 |
-| imageScore | Number | 图片质量评分 |
-| details | Object | 详细审核结果 |
-
----
-
-### 2.2 批量商品审核
-
-#### 接口信息
-
-- **接口路径**: `POST /ai/review/batch`
-- **说明**: 对多个商品进行批量审核
-
-#### 请求参数
-
-**Request Body** (`BatchReviewRequest`)
-
-| 字段名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| productIds | List\<Long\> | 是 | 商品 ID 列表，至少包含一个 ID |
-
-**请求示例**:
-
-```json
-{
-  "productIds": [123456, 123457, 123458]
-}
-```
-
-#### 响应示例
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "products": [
-      {
-        "productId": 123456,
-        "conclusion": "通过",
-        "suggestion": "商品信息完整",
-        "productScore": 95
-      },
-      {
-        "productId": 123457,
-        "conclusion": "不通过",
-        "suggestion": "商品描述存在违规内容",
-        "productScore": 60
-      },
-      {
-        "productId": 123458,
-        "conclusion": "通过",
-        "suggestion": "符合规范",
-        "productScore": 88
-      }
-    ],
-    "summary": {
-      "total": 3,
-      "approved": 2,
-      "rejected": 1
-    }
-  }
-}
-```
-
----
-
-### 2.3 商品描述审核
-
-#### 接口信息
-
-- **接口路径**: `POST /ai/review/description`
-- **说明**: 专门审核商品描述的规范性、完整性
-
-#### 请求参数
-
-**Request Body** (`ReviewRequest`)
-
-| 字段名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| productId | Long | 是 | 商品 ID |
-
-**请求示例**:
-
-```json
-{
-  "productId": 123456
-}
-```
-
-#### 响应示例
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "conclusion": "通过",
-    "suggestion": "描述清晰完整",
-    "score": 92,
-    "analysis": {
-      "completeness": "完整",
-      "accuracy": "准确",
-      "compliance": "合规",
-      "issues": [],
-      "keywords": ["高品质", "限时优惠"]
-    }
-  }
-}
-```
-
-#### 响应字段说明
-
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| conclusion | String | 审核结论 |
-| suggestion | String | 修改建议 |
-| score | Number | 描述质量评分 |
-| analysis | Object | 详细分析结果 |
-
----
-
-### 2.4 商品图片审核
-
-#### 接口信息
-
-- **接口路径**: `POST /ai/review/images`
-- **说明**: 专门审核商品图片的合规性、质量
-
-#### 请求参数
-
-**Request Body** (`ReviewRequest`)
-
-| 字段名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| productId | Long | 是 | 商品 ID |
-
-**请求示例**:
-
-```json
-{
-  "productId": 123456
-}
-```
-
-#### 响应示例
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "conclusion": "通过",
-    "suggestion": "图片清晰，符合规范",
-    "totalImages": 5,
-    "passedImages": 5,
-    "failedImages": 0,
-    "images": [
-      {
-        "url": "https://example.com/image1.jpg",
-        "passed": true,
-        "quality": "high",
-        "issues": []
-      },
-      {
-        "url": "https://example.com/image2.jpg",
-        "passed": true,
-        "quality": "medium",
-        "issues": ["分辨率较低"]
-      }
-    ]
-  }
-}
-```
-
-#### 响应字段说明
-
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| conclusion | String | 审核结论 |
-| suggestion | String | 修改建议 |
-| totalImages | Number | 总图片数 |
-| passedImages | Number | 通过的图片数 |
-| failedImages | Number | 未通过的图片数 |
-| images | Array\<Object\> | 每张图片的详细审核结果 |
-
----
-
-## 3. 待审核商品查询
-
-### 接口信息
-
-- **接口路径**: `GET /ai/products/pending`
-- **说明**: 获取待审核商品列表（分页）
 
 ### 请求参数
 
-| 参数名 | 类型 | 必填 | 默认值 | 说明 |
-|--------|------|------|--------|------|
-| pageNum | Integer | 否 | 1 | 页码，从 1 开始 |
-| pageSize | Integer | 否 | 10 | 每页数量 |
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| productId | Long | 是 | 商品 ID |
 
-**请求示例**:
+### 响应体（来自 Python AI）
 
-```
-GET /ai/products/pending?pageNum=1&pageSize=20
-```
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| product_name | String | 商品名称 |
+| description_review | Object | 描述审核结果 |
+| images_review | Object / null | 图片审核结果（无图片时为 null） |
+| evaluation | Object | 商品综合评价 |
+| conclusion | String | 最终结论：`通过` / `不通过` / `需人工复核` |
+| fail_reason | String | 不通过原因（通过则为空） |
+| improvements | Array | 需整改项列表 |
+| suggestion | String | 综合整改建议 |
+
+#### description_review
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| conclusion | String | 审核结论：`通过` / `不通过` / `需人工复核` |
+| violations | Array | 违规项列表 |
+| suggestion | String | 整改建议 |
+
+#### images_review（无图片时为 null）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| overall_conclusion | String | 总体结论：`通过` / `不通过` / `需人工复核` |
+| images | Array | 各图片审核结果 |
+| violation_summary | String | 违规项汇总 |
+| suggestion | String | 综合整改建议 |
+
+#### evaluation
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| rating | Float | 综合评分（1-5） |
+| pros | String[] | 商品优点 |
+| cons | String[] | 商品缺点/风险 |
+| overall_evaluation | String | 综合评价 |
+| recommendation | String | 推荐建议：`强烈推荐` / `推荐` / `谨慎购买` / `不推荐` |
+
+#### violations[]
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| type | String | 违规类型：虚假宣传、极限词、侵权、价格违规等 |
+| severity | String | 等级：`严重` / `中等` / `轻微` |
+| detail | String | 违规详情 |
+
+#### improvements[]
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| item | String | 整改项目 |
+| priority | String | 优先级：`高` / `中` / `低` |
+| detail | String | 整改说明 |
 
 ### 响应示例
 
 ```json
 {
-  "code": 200,
-  "message": "success",
-  "data": {
-    "content": [
+  "product_name": "iPhone 15 Pro Max",
+  "description_review": {
+    "conclusion": "不通过",
+    "violations": [
       {
-        "id": 123456,
-        "name": "iPhone 15 Pro Max",
-        "subName": "苹果旗舰手机",
-        "images": [
-          "https://example.com/img1.jpg",
-          "https://example.com/img2.jpg"
-        ],
-        "merchantName": "苹果官方旗舰店",
-        "categoryName": "手机",
-        "price": 9999.00,
-        "originalPrice": 10999.00,
-        "stock": 1000,
-        "soldCount": 5000,
-        "rating": 4.8,
-        "auditStatus": "PENDING",
-        "createTime": "2025-06-06 10:30:00"
+        "type": "极限词/违禁词",
+        "severity": "中等",
+        "detail": "描述中包含「限时特价」「先到先得」等诱导性用语"
       }
     ],
-    "pageable": {
-      "pageNumber": 0,
-      "pageSize": 20
-    },
-    "totalElements": 156,
-    "totalPages": 8,
-    "first": true,
-    "last": false,
-    "numberOfElements": 20
+    "suggestion": "请删除诱导性用语"
+  },
+  "images_review": {
+    "overall_conclusion": "通过",
+    "images": [
+      {
+        "image_index": 1,
+        "image_source": "https://example.com/img.jpg",
+        "conclusion": "通过",
+        "violations": [],
+        "suggestion": ""
+      }
+    ],
+    "violation_summary": "",
+    "suggestion": ""
+  },
+  "evaluation": {
+    "rating": 4.0,
+    "pros": ["品牌知名度高"],
+    "cons": ["描述存在诱导性用语"],
+    "overall_evaluation": "商品本身品质较好，但描述存在违规",
+    "recommendation": "谨慎购买"
+  },
+  "conclusion": "不通过",
+  "fail_reason": "描述中存在极限词违规",
+  "improvements": [
+    {
+      "item": "删除诱导性用语",
+      "priority": "高",
+      "detail": "删除「限时特价」「先到先得」"
+    }
+  ],
+  "suggestion": "请按整改建议修改后重新提交"
+}
+```
+
+---
+
+## 3. 批量审核（同步）
+
+一次性审核多个商品，等待所有审核完成后一次性返回。
+
+```
+POST /ai/review/batch
+Content-Type: application/json
+
+{
+  "productIds": [1, 2, 3]
+}
+```
+
+### 请求参数
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| productIds | Long[] | 是 | 商品 ID 列表 |
+
+### 响应体
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| total_count | Integer | 审核商品总数 |
+| passed_count | Integer | 通过数量 |
+| failed_count | Integer | 不通过数量 |
+| manual_review_count | Integer | 需人工复核数量 |
+| products | Array | 各商品审核结果（结构同单商品审核） |
+| overall_summary | String | 批量审核总结 |
+
+### 响应示例
+
+```json
+{
+  "total_count": 2,
+  "passed_count": 1,
+  "failed_count": 1,
+  "manual_review_count": 0,
+  "products": [
+    {
+      "product_name": "商品A",
+      "description_review": { "conclusion": "通过", "violations": [], "suggestion": "" },
+      "images_review": null,
+      "evaluation": {
+        "rating": 4.5,
+        "pros": ["描述清晰"],
+        "cons": [],
+        "overall_evaluation": "商品表现良好",
+        "recommendation": "推荐"
+      },
+      "conclusion": "通过",
+      "fail_reason": "",
+      "improvements": [],
+      "suggestion": "商品合规"
+    }
+  ],
+  "overall_summary": "共审核 2 个商品，通过 1 个，不通过 1 个，需人工复核 0 个。"
+}
+```
+
+---
+
+## 4. 批量审核（流式 SSE）
+
+**逐个审核，每完成一个立即推送结果，解决长时间无响应问题。**
+
+```
+POST /ai/review/batch/stream
+Content-Type: application/json
+
+{
+  "productIds": [1, 2, 3]
+}
+```
+
+### 请求参数
+
+同批量审核（同步）。
+
+### 响应格式
+
+SSE (Server-Sent Events)，`Content-Type: text/event-stream`。
+
+### 事件类型
+
+| 事件名 | 触发时机 | data 字段 |
+|--------|---------|-----------|
+| `start` | 开始处理 | `{"total": N}` |
+| `progress` | 每审核完一个商品 | `{"index": i, "total": N, "productId": id, "result": {...}}` |
+| `error` | 单个商品失败 | `{"index": i, "productId": id, "error": "..."}` |
+| `complete` | 全部完成 | `{"total": N}` |
+
+`progress` 事件中 `result` 的结构与单商品审核响应体完全相同。
+
+### 前端消费示例（fetch + ReadableStream）
+
+```typescript
+async function batchReviewStream(productIds: number[]) {
+  const response = await fetch('/agent-server/ai/review/batch/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ productIds })
+  });
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    let eventType = '';
+    for (const line of lines) {
+      if (line.startsWith('event: ')) {
+        eventType = line.slice(7);
+      } else if (line.startsWith('data: ')) {
+        const data = JSON.parse(line.slice(6));
+        switch (eventType) {
+          case 'start':
+            setTotal(data.total);
+            break;
+          case 'progress':
+            // data: { index, total, productId, result: { conclusion, ... } }
+            updateResult(data.productId, data.result);
+            setProgress(`${data.index + 1} / ${data.total}`);
+            break;
+          case 'error':
+            console.error('审核失败:', data.productId, data.error);
+            break;
+          case 'complete':
+            setDone(true);
+            break;
+        }
+      }
+    }
   }
 }
 ```
 
-#### ProductSimpleVO 字段说明
+### 前端消费示例（EventSource 包装，需适配 POST）
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| id | Long | 商品 ID |
-| name | String | 商品名称 |
-| subName | String | 商品副标题 |
-| images | List\<String\> | 商品图片 URL 列表 |
-| merchantName | String | 商家名称 |
-| categoryName | String | 分类名称 |
-| price | BigDecimal | 商品价格 |
-| originalPrice | BigDecimal | 原价 |
-| stock | Integer | 库存 |
-| soldCount | Integer | 已售数量 |
-| rating | Double | 评分 |
-| auditStatus | String | 审核状态：PENDING/APPROVED/REJECTED |
-| createTime | String | 创建时间 |
+浏览器原生 `EventSource` 不支持 POST，可用 `fetch` + `ReadableStream` 方式（如上），或用 polyfill 库。
 
 ---
 
-## 4. WebSocket 实时聊天接口
+## 5. 描述审核
 
-### 接口信息
+仅审核商品描述文本。
 
-- **协议**: WebSocket
-- **连接地址**: `ws://localhost:8903/ws/chat`
-- **说明**: 通过 WebSocket 与 AI 进行实时对话，用于商品审核咨询
+```
+POST /ai/review/description
+Content-Type: application/json
 
-### 连接建立
+{
+  "productId": 1
+}
+```
 
-#### 连接参数
+### 请求参数
 
-WebSocket 连接时需要在 URL 中携带以下查询参数：
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| userId | String | 是 | 用户 ID |
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
 | productId | Long | 是 | 商品 ID |
 
-**连接示例**:
+### 响应体
 
-```
-ws://localhost:8903/ws/chat?userId=user123&productId=123456
-```
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| conclusion | String | `通过` / `不通过` / `需人工复核` |
+| violations | Array | 违规项列表 |
+| suggestion | String | 整改建议 |
 
-#### 连接成功消息（服务端 → 客户端）
-
-```json
-{
-  "type": "connected",
-  "sessionId": "user123:uuid-xxx-yyy",
-  "message": "AI商品审核助手已连接，请提出您的问题"
-}
-```
-
-#### 商品上下文自动推送（服务端 → 客户端）
-
-连接成功后，服务端会自动推送当前商品的详细信息：
+### 响应示例
 
 ```json
 {
-  "type": "context",
-  "content": "以下是需要审核的商品信息：\n名称：iPhone 15 Pro Max\n描述：苹果旗舰手机...\n商家：苹果官方旗舰店\n分类：手机"
+  "conclusion": "不通过",
+  "violations": [
+    {
+      "type": "极限词/违禁词",
+      "severity": "严重",
+      "detail": "使用了违禁词「全网最低价」「唯一」"
+    }
+  ],
+  "suggestion": "请删除极限词，修改为合规表述"
 }
 ```
 
-### 消息交互
+---
 
-#### 客户端发送消息（客户端 → 服务端）
+## 6. 图片审核
 
-**格式**: 纯文本
-
-**示例**:
+审核一组商品图片。
 
 ```
-这个商品的描述是否符合广告法规范？
+POST /ai/review/images
+Content-Type: application/json
+
+{
+  "productId": 1
+}
 ```
 
-#### 服务端回复消息（服务端 → 客户端）
+### 请求参数
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| productId | Long | 是 | 商品 ID |
+
+### 响应体
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| overall_conclusion | String | `通过` / `不通过` / `需人工复核` |
+| images | Array | 各图片审核结果 |
+| violation_summary | String | 违规汇总 |
+| suggestion | String | 综合整改建议 |
+
+### 响应示例
 
 ```json
 {
-  "type": "message",
-  "reply": "经过审核，该商品描述存在以下问题：\n1. 使用了\"最顶级\"等绝对化用语，违反广告法\n2. 建议修改为\"高品质\"等表述"
+  "overall_conclusion": "不通过",
+  "images": [
+    {
+      "image_index": 1,
+      "image_source": "https://example.com/img.jpg",
+      "conclusion": "不通过",
+      "violations": [
+        { "type": "违规内容", "severity": "严重", "detail": "图片包含违规内容" }
+      ],
+      "suggestion": "请替换违规图片"
+    }
+  ],
+  "violation_summary": "第1张图片存在违规内容",
+  "suggestion": "请删除违规图片后重新提交"
 }
 ```
 
-### WebSocket 消息类型
+---
 
-#### 客户端 → 服务端消息
+## 7. 待审核商品列表
 
-| 消息类型 | 格式 | 说明 |
-|---------|------|------|
-| 文本消息 | 纯字符串 | 用户提出的问题或指令 |
+获取待审核商品列表（分页）。
 
-#### 服务端 → 客户端消息
+```
+GET /ai/products/pending?pageNum=1&pageSize=10
+```
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| type | String | 消息类型：connected/context/message/error |
-| sessionId | String | 会话 ID（仅在 connected 类型中） |
-| message | String | 提示信息（仅在 connected 类型中） |
-| content | String | 商品上下文信息 |
-| reply | String | AI 回复内容 |
-| error | String | 错误信息 |
+### 请求参数
 
-### WebSocket 事件处理
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| pageNum | Integer | 否 | 1 | 页码，从 1 开始 |
+| pageSize | Integer | 否 | 10 | 每页数量 |
 
-#### 连接建立 (`afterConnectionEstablished`)
-
-1. 验证请求参数（userId、productId）
-2. 创建聊天会话
-3. 自动推送商品上下文
-4. 返回连接成功消息
-
-#### 接收消息 (`handleTextMessage`)
-
-1. 接收用户输入的文本消息
-2. 调用 AI 服务进行处理
-3. 返回 AI 回复内容
-
-#### 连接关闭 (`afterConnectionClosed`)
-
-1. 清理会话数据
-2. 释放资源
-
-### 错误处理
-
-#### 连接参数错误
+### 响应体（统一 ResponseResult）
 
 ```json
 {
-  "type": "error",
-  "message": "缺少必要参数: userId, productId"
+  "code": 1000,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "name": "商品名称",
+      "description": "商品描述",
+      "subName": "副标题",
+      "images": ["https://.../img1.jpg"],
+      "merchantName": "商家名称",
+      "categoryName": "分类名称",
+      "price": 99.99,
+      "originalPrice": 199.99,
+      "stock": 100,
+      "soldCount": 50,
+      "reviewCount": 10,
+      "favoriteCount": 20,
+      "rating": 4.5,
+      "tags": ["标签1", "标签2"],
+      "keywords": "关键词",
+      "auditStatus": 0,
+      "publishStatus": 0,
+      "isHot": 1,
+      "isFeatured": 0,
+      "isNew": 1,
+      "merchantId": 1,
+      "categoryId": 1,
+      "createTime": "2026-06-08T12:00:00"
+    }
+  ]
 }
 ```
 
-#### productId 格式错误
+> `ResponseResult` 统一格式：`{ "code": 1000, "message": "success", "data": T }`
 
-```json
-{
-  "type": "error",
-  "message": "productId格式错误"
-}
+---
+
+## 8. WebSocket AI 对话
+
+通过 WebSocket 与 AI 实时对话，用于审核咨询。
+
+```
+ws://<host>:8903/ws/chat?userId={userId}&productId={productId}
 ```
 
-#### 会话不存在
+### 连接参数
 
-```json
-{
-  "type": "error",
-  "message": "会话不存在"
-}
-```
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| userId | String | 是 | 用户标识 |
+| productId | Long | 是 | 商品 ID |
 
-### WebSocket 使用示例（JavaScript）
+### 消息类型
+
+#### 服务端 → 客户端
+
+| type | 说明 | 字段 |
+|------|------|------|
+| `connected` | 连接成功 | sessionId, message |
+| `message` | AI 回复 | reply |
+| `error` | 错误 | message |
+
+#### 客户端 → 服务端
+
+纯文本消息，直接发送字符串。
+
+### 交互流程
+
+1. 客户端建立 WebSocket 连接（带 userId、productId）
+2. 服务端返回 `connected` 消息
+3. 服务端自动推送商品上下文信息
+4. 客户端发送文本消息提问
+5. 服务端返回 `message` 类型的 AI 回复
+
+### JavaScript 示例
 
 ```javascript
-// 1. 建立连接
-const userId = 'user123';
-const productId = 123456;
-const ws = new WebSocket(`ws://localhost:8903/ws/chat?userId=${userId}&productId=${productId}`);
+const ws = new WebSocket('ws://localhost:8903/ws/chat?userId=user123&productId=1');
 
-// 2. 监听连接打开
-ws.onopen = function() {
-    console.log('WebSocket 连接成功');
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  switch (data.type) {
+    case 'connected':
+      console.log('会话已建立:', data.sessionId);
+      break;
+    case 'message':
+      console.log('AI:', data.reply);
+      break;
+    case 'error':
+      console.error('错误:', data.message);
+      break;
+  }
 };
 
-// 3. 监听消息接收
-ws.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-    
-    switch (data.type) {
-        case 'connected':
-            console.log('会话已建立:', data.sessionId);
-            break;
-        case 'context':
-            console.log('商品上下文:', data.content);
-            // 可以在此展示商品信息给前端用户
-            break;
-        case 'message':
-            console.log('AI 回复:', data.reply);
-            // 显示 AI 回复到聊天界面
-            break;
-        case 'error':
-            console.error('错误:', data.message);
-            break;
-    }
-};
-
-// 4. 发送消息
-function sendMessage(message) {
-    if (ws.readyState === WebSocket.OPEN) {
-        ws.send(message);
-    }
-}
-
-// 使用示例
-sendMessage('这个商品的描述是否合规？');
-
-// 5. 监听连接关闭
-ws.onclose = function() {
-    console.log('WebSocket 连接已关闭');
-};
-
-// 6. 监听错误
-ws.onerror = function(error) {
-    console.error('WebSocket 错误:', error);
-};
-```
-
-### WebSocket 常见场景
-
-#### 场景 1：询问商品审核结果
-
-```
-用户: 这个商品能通过审核吗？
-AI: 根据审核结果，该商品存在以下问题...
-```
-
-#### 场景 2：请求修改建议
-
-```
-用户: 请帮我优化商品描述
-AI: 建议对以下内容进行修改...
-```
-
-#### 场景 3：查询同类商品对比
-
-```
-用户: 和同类商品相比怎么样？
-AI: 根据数据库分析，该商品在以下几个方面表现优秀...
+ws.onopen = () => ws.send('这个商品描述是否合规？');
 ```
 
 ---
 
-## 通用说明
+## 9. 数据模型
 
-### 统一响应格式
+### 审核结论
 
-所有 HTTP 接口均使用统一的响应格式 `ApiResult<T>`:
+| 值 | 说明 |
+|----|------|
+| `通过` | 商品合规 |
+| `不通过` | 存在违规，需整改 |
+| `需人工复核` | 无法确定，需人工判断 |
 
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {}
-}
-```
+### 违规等级
 
-#### 响应字段说明
+| 值 | 说明 |
+|----|------|
+| `严重` | 违禁品、严重虚假宣传、侵权 |
+| `中等` | 极限词、夸大功效、价格违规 |
+| `轻微` | 描述不规范、标签不准确 |
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| code | Integer | 响应码，200 表示成功，其他表示失败 |
-| message | String | 响应消息 |
-| data | Object | 响应数据 |
+### 整改优先级
 
-### 错误响应
+| 值 | 说明 |
+|----|------|
+| `高` | 必须立即整改 |
+| `中` | 建议尽快整改 |
+| `低` | 建议优化 |
 
-当接口发生错误时，会返回对应的错误码和错误信息：
+### 推荐建议
 
-```json
-{
-  "code": 500,
-  "message": "处理失败：商品不存在",
-  "data": null
-}
-```
-
-### 认证方式
-
-当前版本暂未集成认证机制，后续版本将集成 JWT Token 认证。
-
-### 限流策略
-
-暂未实施限流策略，后续将根据业务需求添加。
+| 值 | 说明 |
+|----|------|
+| `强烈推荐` | 商品质量好，性价比高 |
+| `推荐` | 符合要求 |
+| `谨慎购买` | 存在一定风险 |
+| `不推荐` | 存在严重问题 |
 
 ---
 
-## 数据模型
+## 网关访问说明
 
-### ReviewRequest
+由于 `agent-server` 是微服务，通过网关统一入口访问时需添加服务前缀：
 
-用于单个商品审核请求
+| 环境 | 网关地址 | 完整路径示例 |
+|------|---------|-------------|
+| 本地直连 | `http://localhost:8903` | `POST http://localhost:8903/ai/review/product` |
+| 通过网关 | `http://<gateway-host>:<gateway-port>` | `POST http://<gateway>/agent-server/ai/review/product` |
 
-| 字段名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| productId | Long | 是 | 商品 ID |
-
-### BatchReviewRequest
-
-用于批量商品审核请求
-
-| 字段名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| productIds | List\<Long\> | 是 | 商品 ID 列表 |
-
-### ProductReviewRequest
-
-完整商品信息审核请求（内部使用）
-
-| 字段名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| name | String | 是 | 商品名称 |
-| description | String | 是 | 商品描述 |
-| subName | String | 否 | 商品副标题 |
-| imageUrls | List\<String\> | 否 | 商品图片 URL 列表 |
-| merchantName | String | 否 | 商家名称 |
-| categoryName | String | 否 | 分类名称 |
-| priceInfo | Object | 否 | 价格信息 |
-| stock | Integer | 否 | 库存 |
-| soldCount | Integer | 否 | 已售数量 |
-| reviewCount | Integer | 否 | 评价数量 |
-| favoriteCount | Integer | 否 | 收藏数量 |
-| rating | Double | 否 | 评分 |
-| tags | String | 否 | 标签 |
-| keywords | String | 否 | 关键词 |
-| isHot | Boolean | 否 | 是否热卖 |
-| isFeatured | Boolean | 否 | 是否推荐 |
-| isNew | Boolean | 否 | 是否新品 |
-
----
-
-## 部署信息
-
-### 环境配置
-
-```properties
-# 应用名称
-spring.application.name=agent-server
-
-# 服务端口
-server.port=8903
-
-# Python AI API 地址
-python.api.base-url=http://localhost:8000
-
-# MySQL 数据库配置
-spring.datasource.url=jdbc:mysql://localhost:3306/shopping_server
-spring.datasource.username=root
-spring.datasource.password=QLBM2905
-
-# Jackson 日期格式化
-spring.jackson.date-format=yyyy-MM-dd HH:mm:ss
-spring.jackson.time-zone=GMT+8
-```
-
-### 依赖服务
-
-- **Python AI API**: `http://localhost:8000` - 提供 AI 审核能力
-- **MySQL 数据库**: `localhost:3306` - 存储商品数据
-- **shopping-server**: 通过 Feign Client 调用商品服务
-
----
-
-## 更新日志
-
-### v1.0.0 (2025-06-06)
-
-- 初始版本发布
-- 支持单商品全量审核
-- 支持批量商品审核
-- 支持商品描述专项审核
-- 支持商品图片专项审核
-- 支持待审核商品分页查询
-- 支持 WebSocket 实时对话
-
----
-
-## 联系与支持
-
-如有问题，请联系开发团队或查看项目文档。
+网关路由规则：
+- 路径前缀 `/agent-server/**` → 转发到 `lb://agent-server`
+- `StripPrefix=1`（剥掉 `agent-server` 前缀）

@@ -14,6 +14,7 @@ import org.example.commonapi.result.ResponseResult;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,11 @@ public class ProxyController {
             @Valid @RequestBody BatchReviewRequest request) {
         Map<String, Object> result = productReviewService.reviewBatch(request.getProductIds());
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/review/batch/stream")
+    public SseEmitter reviewBatchStream(@Valid @RequestBody BatchReviewRequest request) {
+        return productReviewService.reviewBatchStream(request.getProductIds());
     }
 
     @PostMapping("/review/description")

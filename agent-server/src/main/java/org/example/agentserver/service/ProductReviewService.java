@@ -17,11 +17,15 @@ import org.example.agentserver.model.dto.DescriptionReviewRequest;
 import org.example.agentserver.model.dto.ImageReviewRequest;
 import org.example.agentserver.model.dto.ProductReviewRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 @RequiredArgsConstructor
@@ -101,6 +105,64 @@ public class ProductReviewService {
         batchRequest.put("products", requests);
         Map<String, Object> result = proxyService.post("/api/review/batch", batchRequest);
         return result;
+    }
+
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+
+    public SseEmitter reviewBatchStream(List<Long> productIds) {
+        List<ProductReviewRequest> requests = productIds.stream()
+                .map(this::buildReviewRequest)
+                .toList();
+
+        SseEmitter emitter = new SseEmitter(0L);
+
+        executor.submit(() -> {
+            try {
+                Map<String, Object> startEvent = new HashMap<>();
+                startEvent.put("total", requests.size());
+                emitter.send(SseEmitter.event().name("start")
+                        .data(objectMapper.writeValueAsString(startEvent)));
+
+                for (int i = 0; i < requests.size(); i++) {
+                    Long productId = productIds.get(i);
+                    ProductReviewRequest req = requests.get(i);
+
+                    try {
+                        Map<String, Object> result = proxyService.post("/api/review/product", req);
+
+                        Map<String, Object> eventData = new HashMap<>();
+                        eventData.put("index", i);
+                        eventData.put("total", requests.size());
+                        eventData.put("productId", productId);
+                        eventData.put("result", result);
+
+                        emitter.send(SseEmitter.event().name("progress")
+                                .data(objectMapper.writeValueAsString(eventData)));
+                    } catch (Exception e) {
+                        log.error("审核商品失败: productId={}", productId, e);
+
+                        Map<String, Object> errorData = new HashMap<>();
+                        errorData.put("index", i);
+                        errorData.put("productId", productId);
+                        errorData.put("error", e.getMessage());
+
+                        emitter.send(SseEmitter.event().name("error")
+                                .data(objectMapper.writeValueAsString(errorData)));
+                    }
+                }
+
+                Map<String, Object> completeEvent = new HashMap<>();
+                completeEvent.put("total", requests.size());
+                emitter.send(SseEmitter.event().name("complete")
+                        .data(objectMapper.writeValueAsString(completeEvent)));
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("批量审核流式处理失败", e);
+                try { emitter.completeWithError(e); } catch (Exception ignored) {}
+            }
+        });
+
+        return emitter;
     }
     
     /**

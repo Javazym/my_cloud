@@ -10,7 +10,7 @@
   "isStrict": false,
   "inlineEnum": true,
   "tornaEnable": true,
-  "openUrl": "http://192.168.31.37:7700/api",
+  "openUrl": "http://localhost：7770/api",
   "appToken": "06ccb045d84244c4b4f91fbbd27256dc",
   "appKey": "20251234567890123456",
   "appSecret": "12345678901234567890123456789012",

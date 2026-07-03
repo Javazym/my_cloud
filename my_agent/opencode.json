@@ -3,7 +3,7 @@
     "openai": {
       "options": {
         "baseURL": "https://050127.xyz/v1",
-        "apiKey": "sk-31bc026637bdf67690b62069180ba8dfcd371c4c3dc3f8357275047230b8ba33"
+        "apiKey": "sk-31b230b8ba33"
       },
       "models": {
         "gpt-5.2": {
